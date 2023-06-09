@@ -88,7 +88,7 @@ code_labels <- c("70" = "All stations (missing values imputed)",
                  "95" = "95% completeness (missing values imputed)")
 
 stations_file_path <- file.path(source_dir,
-                                "03_us_imputed_isd_daily_2008_2022",
+                                #"03_us_imputed_isd_daily_2008_2022",
                                 "noaa_isd_stations_contiguous_us_2007_2022.rds")
 
 stations_geo <- readRDS(stations_file_path)%>%
@@ -153,7 +153,7 @@ length(unique(selected_period_geo_events_only$station_id))
 
 
 us_census_pop <- readRDS(file.path(source_dir,
-                   "03_us_imputed_isd_daily_2008_2022",
+                   #"03_us_imputed_isd_daily_2008_2022",
                    "us_census_pop_2019.rds"))
 
 masking_layer <- as_Spatial(us_census_pop,
@@ -169,42 +169,14 @@ station_points_SF <- stations_geo %>%
 st_crs(stations_geo)
 st_crs(station_points_SF)
 
-  # # Replace point boundary extent with that of the state
-  # station_points_SP@bbox <- masking_layer@bbox
-
-  # Create an empty grid where n is the total number of cells
-  #   tic()
-### Geog set 5 ----
-  #   blank_grid_SP              <- as.data.frame(sp::spsample(masking_layer, "regular",
-  #                                              cellsize = cellsize,
-  #                                              n = 0,
-  #                                              crs = spatial_projection_lonlat))
-  #   names(blank_grid_SP)       <- c("X", "Y")
-  #   coordinates(blank_grid_SP) <- c("X", "Y")
-  #   gridded(blank_grid_SP)     <- TRUE  # Create SpatialPixel object
-  #   fullgrid(blank_grid_SP)    <- TRUE  # Create SpatialGrid object
-  # ## Add P's projection information to the empty grid
-  #   proj4string(blank_grid_SP) <- proj4string(masking_layer)
-  # timing_sp <- toc()$callback_msg
-  # grdmsize_sp <- object.size(blank_grid_SP)
-  # cat("\nBlank grid by Stars \n - processing time:", timing_sp,
-  # "\n - object size: ", format(grdmsize_sp, units = "auto"),
-  # "\n - object type: ", class(blank_grid_SP))
-  #  saveRDS(blank_grid_SP,
-  #          file.path(rds_output_path,
-  #                    "CA_blank_grid_SP.rds"))
-  #
       blank_grid_file_path <- file.path(source_dir,
-                                        "03_us_imputed_isd_daily_2008_2022",
+                                        #"03_us_imputed_isd_daily_2008_2022",
                                         #"CA_blank_grid_SP.rds")
                                         #"CA_blank_grid_SP_masked.rds")
                                         "blank_grid_SP.rds")
       blank_grid_SP <- readRDS(blank_grid_file_path)
 
       ls(pat = "fx_")
-      
-      #fx_info(blank_grid_SP)
-   #print(blank_grid_SP[1]@grid)
 
    tic()
    plot(blank_grid_SP)
@@ -223,16 +195,11 @@ st_crs(station_points_SF)
      output_path = meta_output_path)
 
 gc()
-#hist(EHCE_selected_period_geo$EHMI_normalized_by_range)
-#summary(EHCE_selected_period_geo$EHMI_normalized_by_range)
-# f(x): Create a named list of objects based on the original objects name
-# https://stackoverflow.com/questions/18861772/r-get-objects-names-from-the-list-of-objects
-
-#summary(NamedList)
 
 daily_data_segments <- as.list(E_DATES[[1]])
+
 E_DATES[[1]]
-daily_data_segments <- as.list(E_DATES[[1]])
+
 selected_day <- NULL
 
   error_date_list <- c()
@@ -246,38 +213,45 @@ idw_outputs <- file.path(runtime_path, paste0(start_year, "_Method_IWD_", cellsi
 # # Initiate the temporal loop ----
 library(doParallel)
 cores <- 4
+
 # # create a cluster object
-cl <- makeCluster(cores)
+cl <- makeCluster(cores, outfile = "~/outfile.txt")
 
 # # register the cluster
 registerDoParallel(cl)
 
-foreach(daily_data = daily_data_segments, .verbose = TRUE) %dopar% {
+foreach(#daily_data = daily_data_segments, 
+  i = 1:length(daily_data_segments),
+        .multicombine = TRUE,
+        .verbose = TRUE,
+        .packages =c("here", "sf", "sp", "data.table", "tidyverse", "tictoc", 
+                     "terra", "ggplot2", "tidyterra")
+        ) %dopar% {
 
-  selected_day <<- daily_data[[1]]
+#for(daily_data in daily_data_segments){
+  
+  selected_day <- daily_data_segments[[i]]
   print(selected_day)
 
-  library(here)
-  library(sf)
-  library(sp)
-  library(tidyverse)
-  library(tictoc)
   source(here::here("runtime_setup",
                     "1_helper_functions.R"), local = T)
+  
+  selected_period_geo_events_only_tmp <- selected_period_geo_events_only %>%
+    filter(DATE == selected_day) # %>%
+  #dplyr::select(contains("MI") | contains("id")), # %>% st_drop_geometry()
 
+    tryCatch({
     station_points_SF_day <-
       merge(stations_geo,
-              selected_period_geo_events_only %>%
-              #st_transform(spatial_projection) %>%
-              filter(DATE == selected_day), # %>%
-              #dplyr::select(contains("MI") | contains("id")), # %>% st_drop_geometry(),
+            selected_period_geo_events_only_tmp, 
             by.x="station_id",
             by.y="station_id",
             all.x = TRUE,
             suffix = c("","_sp")) %>%
       mutate_if(is.numeric, list(~replace_na(., 0)))
-    #glimpse(station_points_SF_day)
-
+    
+    rm(selected_period_geo_events_only_tmp)
+    
     station_points_SP <- as_Spatial(station_points_SF_day,
                                     cast = TRUE)
     #plot(station_points_SF_day[2])
@@ -286,23 +260,183 @@ foreach(daily_data = daily_data_segments, .verbose = TRUE) %dopar% {
 ### SP idw ----
 gc()
 tic()
-#replicate(10,
+
 #interpolated_idw_SP <- gstat::idw(EHCMI ~ 1, EHCMI_normalized
 interpolated_idw_SP <- gstat::idw(EHCF ~ 1, # interpolation variable ----
                                       station_points_SP,
                                       newdata = blank_grid_SP, # base grid
                                       nmax = 6 ,
                                       idp = idw)
-#)
 fx_toc(interpolated_idw_SP)
 
+# Create the Raster object that is needed for computing cumulative & differential stats, not suitable for visualization
+tic()
+# IWD 2 Raster ----
+idw_ehce_raster_bbox <- raster::raster(interpolated_idw_SP["var1.pred"])
+names(idw_ehce_raster_bbox) <- selected_day
 
-    tryCatch({
+saveRDS(idw_ehce_raster_bbox,
+        file.path(rds_output_path,
+                  paste0("idw_ehce_raster_bbox_",
+                         selected_day,
+                         ".rds")))
 
-    # read the idw post-processing script and apply visualization function
-      source(here::here("extreme_events_identification",
-                        "0801_idw_post_processing.R"), local = T)
-      
+fx_toc(idw_ehce_raster_bbox)
+
+tic()
+
+idw_ehce_raster <- raster::mask(raster::crop(idw_ehce_raster_bbox,
+                                             masking_layer), masking_layer)
+rm(idw_ehce_raster_bbox)
+
+idw_ehce_raster <- trim(idw_ehce_raster)
+
+saveRDS(idw_ehce_raster,
+        file.path(idw_outputs,
+                  paste0("idw_ehce_raster_masked_",
+                         selected_day,
+                         ".rds")))
+
+terra::writeRaster(idw_ehce_raster,
+                   file.path(geo_output_path,
+                             paste0("idw_ehce_raster_masked_",
+                                    selected_day)),
+                   filetype = "raster",
+                   overwrite=TRUE)
+
+fx_toc(idw_ehce_raster)
+
+tic()
+idw_ehce_dt <- as.data.frame(idw_ehce_raster, xy=TRUE)
+setDT(idw_ehce_dt)
+
+saveRDS(idw_ehce_dt,
+        file.path(rds_output_path,
+                  paste0("idw_ehce_dt_",
+                         selected_day,
+                         ".rds")))
+
+table_path <- file.path(tables_output_path, 
+                        paste0("idw_ehce_dt_",
+                               selected_day,
+                               ".csv"))
+
+write.table(idw_ehce_dt, table_path, 
+            sep = ",", row.names = F, col.names = T,
+            append = F)
+
+fx_toc(idw_ehce_dt)
+rm(idw_ehce_dt) ## remove data.table object ----
+
+
+
+tic()
+# Create the Raster object that is needed for visualization
+# IDW 2 Terra Raster ----
+idw_ehce_terra_raster <- terra::rast(interpolated_idw_SP["var1.pred"])
+idw_ehce_terra_raster[(idw_ehce_terra_raster == 0)] <- NA
+idw_ehce_terra_raster <- mask(idw_ehce_terra_raster, us_census_pop)
+names(idw_ehce_terra_raster) <- selected_day
+
+saveRDS(idw_ehce_terra_raster,
+        file.path(rds_output_path,
+                  paste0("idw_ehce_terra_raster_",
+                         selected_day,
+                         ".rds")))
+
+terra::writeRaster(idw_ehce_terra_raster,
+                   file.path(geo_output_path,
+                             paste0("idw_ehce_terra_raster_",
+                                    selected_day, ".tif")),
+                   filetype = "GTiff",
+                   overwrite=TRUE)
+
+
+fx_toc(idw_ehce_terra_raster)
+
+tic()
+
+# # IDW 2 Stars ----
+# interpolated_idw_stars <- stars::st_as_stars(idw_ehce_raster)
+# saveRDS(interpolated_idw_stars,
+#         file.path(rds_output_path,
+#                   paste0("interpolated_idw_stars_",
+#                          selected_day,
+#                          ".rds")))
+# fx_toc(interpolated_idw_stars)
+# 
+# rm(interpolated_idw_stars) ## remove stars object ----
+rm(idw_ehce_raster) ## remove raster masked object ----
+
+
+
+# Visualization functions----
+fx_ehe_ece_iwd_plot <- function(terralayer, output_path,
+                                selected_day = selected_day,
+                                caption = "Data Source: NOAA Integrated Surface Database (ISD)") {
+  
+  interpolated_EHCE_plot <-  ggplot() +
+    geom_spatraster(data = terralayer) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       midpoint = 0, na.value = "white") +
+    #
+  geom_sf(data = us_census_pop,
+          fill = NA,
+          color = "Black",
+          lwd = .5) +
+    
+    labs(title = paste0("Extreme Event Date: ",  selected_day)) +
+    labs(subtitle = paste0("Contiguous U.S.")) +# (", year, ")")) +
+    labs(caption = caption) +
+    
+
+    geom_sf(data = station_points_SF,
+            color = "Black",
+            size = .6) # +
+  #theme_blank()
+  
+  plot_file_name <- paste0(plots_output_path, "/",
+                           "ehe_ece_iwd_",
+                           #"_contour_overlay_",
+                           selected_day,
+                           ".jpg")
+  
+  tic()
+  ggsave(plot_file_name,
+         plot = interpolated_EHCE_plot,
+         dpi = 300,
+         width = 32, height = 24, units = "cm")
+  fx_toc(interpolated_EHCE_plot)
+}
+
+fx_ehe_ece_iwd_plot(idw_ehce_terra_raster, 
+                    idw_outputs,
+                    selected_day = selected_day)
+rm(idw_ehce_terra_raster) ## remove terra raster object ----
+
+tic()
+# # IDW 2 SF ----
+interpolated_idw_SF <- interpolated_idw_SP %>% st_as_sf() %>%
+  rename_at(vars(contains("var1.pred")), ~"Estimated_Level") %>%
+  filter(Estimated_Level != 0) %>%
+  mutate(Estimated_Level = round(Estimated_Level, 2)) %>%
+  mutate(DATE = selected_day)
+# 
+saveRDS(interpolated_idw_SF,
+        file.path(rds_output_path,
+                  paste0("interpolated_idw_SF_",
+                         selected_day,
+                         ".rds")))
+fx_toc(interpolated_idw_SF)
+
+rm(interpolated_idw_SF) ## remove sf object ----
+rm(interpolated_idw_SP) ## remove sp object ----
+gc()
+
+    # read the idw post-processing script and apply visualization function 
+      # source(here::here("extreme_events_identification",
+      #                   "0801_idw_post_processing.R"), local = T)
+      # # 
       ls(pattern = "idw_ehce_")
 
       print(gc())
