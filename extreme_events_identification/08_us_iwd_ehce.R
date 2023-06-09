@@ -321,9 +321,9 @@ table_path <- file.path(tables_output_path,
                                selected_day,
                                ".csv"))
 
-write.table(idw_ehce_dt, table_path, 
-            sep = ",", row.names = F, col.names = T,
-            append = F)
+#write.table(idw_ehce_dt, table_path, 
+#            sep = ",", row.names = F, col.names = T,
+#            append = F)
 
 fx_toc(idw_ehce_dt)
 rm(idw_ehce_dt) ## remove data.table object ----
