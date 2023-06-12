@@ -91,58 +91,116 @@ fx_info <- function(x) {
       #"\n Methods by class :", methods,
       #"\n Methods by keyword :", installed_methods
   )
+  
+  tryCatch({
+    #  epsg <- st_crs(rm_sf)$epsg
+    
+    # nlayers <- nlayers(x)
+    #  crs <- crs(x)
+    #  prj <- proj4string(x)
+    #sm <- summary(x)
+    #st <- str(x)
+    
+    # cat("\n Layers: ", nlayers,
+    #     "\n CRS: ", crs,
+    #     "\n PRJ: ", prj
+    #     #"\n Methods by class :", methods,
+    #     #"\n Methods by keyword :", installed_methods
+    # )
+  }, error = function(e){
+    #   cat(selected_day,
+    #       "ERROR :",conditionMessage(e), "\n")
+    nlayers <- NA
+    epsg <- NA
+    crs <- NA
+    prj <- NA
+  })
+  
 }
 
 # some benchmarks for measure the raster size
-fx_toc <- function(x) {
+fx_toc <- function(x, switch = 1L,
+                   comment1 = "comment_1", comment2 = "comment_2") {
   name <- substitute(x)
-  ln <- length(x)
-  length <- paste0(scales::label_number(accuracy = 0.001, scale_cut = scales::cut_short_scale())(ln))
-  dm <- dim(x)
-  cl <- class(x)
-  ty <- typeof(x)
   
-  msize <- format(object.size(x), units = "auto")
-  methods <- methods(class = cl)
-  timing <- toc(quiet = TRUE)$callback_msg
+  ln <- length(x)
+  ln_scaled <- paste0(scales::label_number(accuracy = 0.1, 
+                                        scale_cut = scales::cut_short_scale())(ln))
+  ln_scaled_nodecimal <- scales::label_number_si()(ln)
+  ln_formatted <- scales::label_comma()(ln)
 
-  cat("\n Object Name: ", name,
+  dm <- dim(x)
+  dm_1 <- dm[1]
+  dm_2 <- dm[2]
+  #dm_3 <- ifelse(dm >= 3, dm[3][1], NA)
+  
+  cl <- class(x)
+  cl_1 <- cl[1]
+  cl_2 <- cl[2]
+  #cl_2 <- ifelse(cl >= 2, cl[2], NA)
+  
+  ty <- typeof(x)
+  methods <- methods(class = cl)
+  
+  #msize <- format(object.size(x), units = "auto")
+  msize <- scales::label_bytes()(object.size(x)[1])
+  
+  processing_time <- toc(quiet = TRUE)$callback_msg
+  
+  tic()
+  rds_file_path <- file.path(rds_output_path,
+                             paste0(name, "_", comment1,
+                                    ".rds"))
+  if(switch == 1L){
+    saveRDS(x, rds_file_path)
+    filesize <- file.info(rds_file_path)$size
+    filesize <- scales::label_bytes()(filesize)
+    
+  } else {filesize = 0}
+  
+  storing_time <- toc(quiet = TRUE)$callback_msg
+  
+  tryCatch({
+    epsg <- st_crs(x)$epsg
+    }, error = function(e){
+    epsg <- NA
+  })
+
+  cat("\n\n Object Name: ", name,
       "\n Object Class: ", cl,
       "\n Object Type: ", ty, 
-      "\n Processing Time: ", timing,
-      "\n Size in Memory: ", msize,
-      "\n Length: ", length,
+      "\n Length: ", ln_formatted,
       "\n Dimension: ", dm,
-      "\n"
+      "\n Dim_1: ", dm_1,
+      "\n Dim_2: ", dm_2,
+      #"\n Dim_3: ", dm_3,
+      "\n Comment: ", comment1,
+      "\n Processing Time: ", processing_time,
+      "\n Size in Memory: ", msize,
+      "\n Storing Time: ", storing_time,
+      "\n Size on Disk: ", filesize, 
+      "\n "
   )
-  
+
   tb_report <- cbind(name,
-                     cl, ty,
-                     timing, msize, length)
-  table_path <- paste0(meta_output_path, "/",
-                   "processed_idw_report",
+                     cl_1, cl_2, ty,
+                     processing_time, msize, 
+                     storing_time, filesize,
+                     ln,
+                     #ln_formatted,
+                     ln_scaled,
+                     dm_1, dm_2, 
+                     comment1,
+                     #epsg,
+                     comment2)
+  
+  table_path <- paste0(runtime_path, "/",
+                   "idw_post_processing_report",
                    ".csv")
   
   write.table(tb_report, table_path, 
               sep = ",", row.names = F, append = T,
               col.names = !file.exists(table_path))
-  # tryCatch({
-  # nlayers <- nlayers(x)
-  # crs <- crs(x)
-  # prj <- proj4string(x)
-  #sm <- summary(x)
-  #st <- str(x)
-  
-  # cat("\n Layers: ", nlayers,
-  #     "\n CRS: ", crs,
-  #     "\n PRJ: ", prj
-  #     #"\n Methods by class :", methods,
-  #     #"\n Methods by keyword :", installed_methods
-  # )
-  # }, error = function(e){
-  #   cat(selected_day,
-  #       "ERROR :",conditionMessage(e), "\n")
-  # })
 }
 
 # f(x): 2022-10 - Write a csv file (with added row numbers) on a certain folder
@@ -687,3 +745,58 @@ fx_VoronoiPolygons_fromSF <- function(points){
 }
 
 
+bitcodes <- function(x) {
+  if (x %% 1 != 0) {
+    return(NA_real_)
+  }
+  
+  bits <- as.numeric(intToBits(x))
+  exponent <- (2^(0:16))
+  product <- bits * exponent
+  
+  non_zero_items <- product[product != 0]
+  return(non_zero_items)
+}
+
+# Visualization functions----
+fx_ehe_ece_iwd_plot <- function(terralayer, output_path,
+                                selected_day = selected_day,
+                                n = impacted_stations,
+                                caption = "Data Source: NOAA Integrated Surface Database (ISD)") {
+  
+  interpolated_EHCE_plot <-  ggplot() +
+    geom_spatraster(data = terralayer) +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                         midpoint = 0, na.value = "white") +
+    #
+    geom_sf(data = us_census_pop,
+            fill = NA,
+            color = "Black",
+            lwd = .4) +
+    
+    geom_sf(data = idw_ehce_contour,
+            color = "Black",
+            lwd = .3) +
+    
+    labs(title = paste0("Extreme Event Date: ",  selected_day)) +
+    labs(subtitle = paste0(n, " station(s) impacted within Contiguous U.S.")) +# (", year, ")")) +
+    labs(caption = caption) +
+    
+    geom_sf(data = station_points_SF,
+            color = "Black",
+            size = .2)  #+
+  #theme_blank()
+  
+  plot_file_name <- paste0(plots_output_path, "/",
+                           "ehe_ece_iwd_",
+                           #"_contour_overlay_",
+                           selected_day,
+                           ".jpg")
+  
+  tic()
+  ggsave(plot_file_name,
+         plot = interpolated_EHCE_plot,
+         dpi = 300,
+         width = 32, height = 24, units = "cm")
+  print(fx_toc(interpolated_EHCE_plot, 0, selected_day_label))
+}
