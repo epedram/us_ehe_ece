@@ -15,7 +15,7 @@ library(sf)
 # set the path pointing to the RDS files storing event catalogs
 events_catalog_file_path <- file.path("~/US_EHE_ECE/tracts/",
                                          # aggregate summary by event type for the entire study period
-                                         "Tracts_events_by_type_sf_2013_2022.rds")  
+                                         "Tracts_events_by_type_sf.rds")  
 
                                          # aggregate annual summary
                                          #"Tracts_events_by_year_sf.rds"
@@ -32,16 +32,23 @@ events_catalog_sf <- readRDS(events_catalog_file_path)
 
 ## Visualize frequency and geography of impacted areas
 ```{r}
+pal <- c(
+                                #"white",  
+                                # "darkgreen", 
+                                "lightgreen", 
+                                "khaki", 
+                                "orange2", 
+                                "coral2",
+                                "red4")
+
 frequency_map <- ggplot() +
   geom_sf(data = events_catalog_sf,
           aes(fill = total_event_days),
           lwd = .1) + 
-  scale_fill_viridis_c(
-  alpha = 1,
-  begin = 0,
-  end = 1,
-  direction = -1) +
-    labs(fill = "Total Number of ECE/EHE  Days") +
+  #scale_fill_viridis_c(alpha = 1, direction = -1) +
+  scale_fill_gradientn(colors = pal, 
+                       na.value = NA) + 
+    labs(fill = "Total Number of ECE/EHE Days") +
     labs(title = "Extent of the Extreme Event Impacts within Contiguous U.S") +
     facet_grid("event_type") + # ceate separate maps for the cold and heat events
   theme_bw()
@@ -61,8 +68,9 @@ frequency_map_state <- ggplot() +
   geom_sf(data = events_catalog_sf_stat,
           aes(fill = total_event_days),
           lwd = .1) + 
-  scale_fill_viridis_c(
-  direction = -1) +
+  #scale_fill_viridis_c(alpha = 1, direction = -1) +
+  scale_fill_gradientn(colors = pal, 
+                       na.value = NA) + 
     labs(fill = "Total Number of ECE/EHE Days") +
     labs(title = paste0("Extent of the Extreme Event Impacts in ", geog)) +
     facet_grid("event_type") + # ceate separate maps for the cold and heat events
