@@ -1,4 +1,4 @@
-# Latest update Oct 2022
+# Latest update Oct 2023
 
 ## ---- R helper functions
 # helper functions
@@ -25,37 +25,6 @@ fx_io <- function()
   # print(geo_output_path)
   # print(plots_output_path)
   # print(rds_output_path)
-}
-
-fx_NamedList <- function(...) {
-  names <- as.list(substitute(list(...)))[-1L]
-  setNames(list(...), names)
-}
-
-fx_combine_rds <- function(path, pattern){
-  # Get list of files matching pattern
-  files <- list.files(path = path, pattern = pattern, full.names = TRUE)
-  
-  # Read each file and combine into single data table
-  combined_dt <- purrr::map_dfr(files, readRDS)
-  
-  return(combined_dt)
-}
-
-
-fx_normalize_by_range <- function(x)
-{
-  if (min(x) < 0) {
-    x <- - x
-    x <- - log(1 + round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
-  } else {
-    x <- log(1 + round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
-  }
-  return(x)
-  # }
-  #
-  # norm_x <- (round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
-  # return(norm_x)
 }
 
 fx_info <- function(x) {
@@ -120,88 +89,194 @@ fx_info <- function(x) {
 
 # some benchmarks for measure the raster size
 fx_toc <- function(x, switch = 1L,
-                   comment1 = "comment_1", comment2 = "comment_2") {
+                   comment1 = "comment_1", 
+                   comment2 = "comment_2",
+                   output_path = rds_output_path) {
+  
   name <- substitute(x)
+  
+  tryCatch({
   
   ln <- length(x)
   ln_scaled <- paste0(scales::label_number(accuracy = 0.1, 
-                                        scale_cut = scales::cut_short_scale())(ln))
-  ln_scaled_nodecimal <- scales::label_number_si()(ln)
+                                           scale_cut = scales::cut_short_scale())(ln))
+  ln_scaled_nodecimal <- paste0(scales::label_number(accuracy = 0, 
+                                                     scale_cut = scales::cut_short_scale())(ln))
+  #ln_scaled_nodecimal <- scales::label_number_si()(ln)
+  
   ln_formatted <- scales::label_comma()(ln)
-
+  
   dm <- dim(x)
-  dm_1 <- dm[1]
-  dm_2 <- dm[2]
-  #dm_3 <- ifelse(dm >= 3, dm[3][1], NA)
+  dm_all <- paste(dim(x), collapse = " x ")
+  # Format dimensions with 3-digit separator
+  dm_0 <- paste(sapply(dim(x), function(d) format(d, big.mark = ";", scientific = FALSE)), collapse = "x")
+  
+  # Split the formatted dimensions
+  formatted_dimensions <- strsplit(dm_0, "x")[[1]]
+  
+  # Extract individual dimensions with default "NA" if not available
+  dm_1 <- formatted_dimensions[1]
+  dm_2 <- ifelse(length(formatted_dimensions) >= 2, formatted_dimensions[2], "NA")
+  dm_3 <- ifelse(length(formatted_dimensions) >= 3, formatted_dimensions[3], "NA")
   
   cl <- class(x)
+  cl_len <- length(class(x))
   cl_1 <- cl[1]
-  cl_2 <- cl[2]
-  #cl_2 <- ifelse(cl >= 2, cl[2], NA)
-  
+  cl_2 <- ifelse(cl_len >= 2, cl[2][1], "NA")
+  cl_3 <- ifelse(cl_len >= 3, cl[3][1], "NA")
+  cl_all <- paste0("[",
+                   paste(class(x), collapse = "] . ["),
+                   "]")
+                   
   ty <- typeof(x)
   methods <- methods(class = cl)
   
   #msize <- format(object.size(x), units = "auto")
-  msize <- scales::label_bytes()(object.size(x)[1])
+  mem_size <- scales::label_bytes()(object.size(x)[1])
   
   processing_time <- toc(quiet = TRUE)$callback_msg
   
   tic()
-  rds_file_path <- file.path(rds_output_path,
-                             paste0(name, "_", comment1,
-                                    ".rds"))
   if(switch == 1L){
+    rds_file_path <- file.path(output_path,
+                             paste0(name, "_", 
+                                    comment1, "_",
+                                    comment2,
+                                    ".rds"))
     saveRDS(x, rds_file_path)
-    filesize <- file.info(rds_file_path)$size
-    filesize <- scales::label_bytes()(filesize)
     
-  } else {filesize = 0}
-  
-  storing_time <- toc(quiet = TRUE)$callback_msg
-  
-  tryCatch({
-    epsg <- st_crs(x)$epsg
-    }, error = function(e){
-    epsg <- NA
-  })
+    filesize <- file.info(rds_file_path)$size
+    file_size <- scales::label_bytes()(filesize)
+    storing_time <- toc(quiet = TRUE)$callback_msg
+    
+    #if ("raster" %in% tolower(classNames) | "spatial" %in% tolower(classNames)) {
+      if (any(sapply(c("Raster", "Spat", "star"),  
+                       function(keyword) grepl(keyword, class(x), ignore.case = TRUE)))) {
+          # dev a function to report spatial objects info()
+        } else { 
+        dir.create(file.path(output_path, paste0(".metadata")),
+                    recursive = TRUE, showWarnings = FALSE)
+         metadata_output_path <- file.path(output_path, paste0(".metadata"))
+         
+         fx_reportFieldsPar(
+           x,
+           
+           prefix = name,
+           suffix = comment1,
+           output_path = metadata_output_path)
+        }
+    
+  } else { 
+    file_size <- 0
+    storing_time <- 0
+  }
 
+  tryCatch({ # merge with spatial objects info()
+    epsg <- st_crs(x)$epsg
+    crs <- st_crs(x)$input
+  }, error = function(e){
+    epsg <- ""
+    crs <- ""
+  })
+  
   cat("\n\n Object Name: ", name,
       "\n Object Class: ", cl,
       "\n Object Type: ", ty, 
       "\n Length: ", ln_formatted,
       "\n Dimension: ", dm,
-      "\n Dim_1: ", dm_1,
-      "\n Dim_2: ", dm_2,
-      #"\n Dim_3: ", dm_3,
       "\n Comment: ", comment1,
       "\n Processing Time: ", processing_time,
-      "\n Size in Memory: ", msize,
+      "\n Size in Memory: ", mem_size,
       "\n Storing Time: ", storing_time,
-      "\n Size on Disk: ", filesize, 
-      "\n "
-  )
-
-  tb_report <- cbind(name,
-                     cl_1, cl_2, ty,
-                     processing_time, msize, 
-                     storing_time, filesize,
+      "\n Size on Disk: ", file_size, 
+      "\n EPSG code: ", epsg,
+      "\n ")
+  
+  tb_report <- cbind(name, 
+                     cl_all, 
+                     dm_all,
                      ln,
+                     mem_size, 
+                     processing_time, 
+                     file_size,
+                     storing_time, 
+                     #crs, #this can break the csv structure
+                     epsg, 
                      #ln_formatted,
-                     ln_scaled,
-                     dm_1, dm_2, 
+                     ty,
+                     ln_scaled, 
+                     dm_1, dm_2, dm_3, 
+                     cl_1, cl_2, cl_3, 
                      comment1,
-                     #epsg,
                      comment2)
   
   table_path <- paste0(runtime_path, "/",
-                   "idw_post_processing_report",
-                   ".csv")
+                       "data_processing_report_",
+                       time_period,
+                       #timestamp,
+                       ".csv")
   
   write.table(tb_report, table_path, 
               sep = ",", row.names = F, append = T,
               col.names = !file.exists(table_path))
+  
+  }, error = function(e){
+    cat(name, " fx_toc reporting failed")
+    cat(conditionMessage(e))
+  })
 }
+
+###############################
+fx_NamedList <- function(...) {
+  names <- as.list(substitute(list(...)))[-1L]
+  setNames(list(...), names)
+}
+
+fx_combine_csv <- function(path, pattern){
+  # Get list of files matching pattern
+  files <- list.files(path = path, pattern = pattern, full.names = TRUE)
+  
+  # Read each file and combine into single data table
+  combined_dt <- purrr::map_dfr(files, fread)
+  
+  return(combined_dt)
+}
+
+fx_combine_rds <- function(path, pattern){
+  # Get list of files matching pattern
+  files <- list.files(path = path, pattern = pattern, full.names = TRUE)
+  
+  # Read each file and combine into single data table
+  combined_dt <- purrr::map_dfr(files, readRDS)
+  
+  return(combined_dt)
+}
+
+fx_combine_gpkg <- function(path, pattern){
+  # Get list of files matching pattern
+  files <- list.files(path = path, pattern = pattern, full.names = TRUE)
+  
+  # Read each file and combine into single data table
+  combined_dt <- purrr::map_dfr(files, st_read)
+  
+  return(combined_dt)
+}
+
+fx_normalize_by_range <- function(x)
+{
+  if (min(x) < 0) {
+    x <- log (-x + 1)#, base = 10)
+    x <- -((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T))) %>% 
+            round(., 2) * 100
+  } else {
+    x <- log (x + 1)#, base = 10)
+    x <- ((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T))) %>% 
+            round(., 2) * 100
+  }  
+  return(x)
+}
+
+
 
 # f(x): 2022-10 - Write a csv file (with added row numbers) on a certain folder
 fx_saveCSVSP <- function(sf,
@@ -267,18 +342,43 @@ fx_saveCSVPar <- function(...,
     df_name = object_names[i]
 
     write.csv(tb,
-              paste0(output_path, "/",
-                     prefix, "_",
-                     df_name, "_",
-                     suffix, "_",
-
+              file.path(output_path,
+                        paste0(prefix, "_",
+                        df_name, "_",
+                        suffix, "_",
                      nrow(tb), "x", length(tb),
-                     ".csv"),
+                     ".csv")),
               row.names = F)
   }
 
   )
 }
+
+fx_saveGPKG <- function(...,
+                          output_path = tables_output_path,
+                          prefix = "00", suffix = "_metadata") {
+  objects <- list(...)
+  object_names <- sapply(substitute(list(...))[-1], deparse)
+  
+  lapply(1:length(object_names), function(i) {
+    tb <- objects[i][[1]]
+    df_name = object_names[i]
+    
+    st_write(tb,
+             file.path(output_path,
+                       paste0(prefix, "_",
+                              df_name, "_",
+                              suffix, "_",
+                              
+                              nrow(tb), "x", length(tb),
+                              ".gpkg")),
+             #                           ".geojson")),
+             delete_layer = TRUE)
+  }
+  
+  )
+}
+
 # f(x): Write a shapefile (with a subfolder) on a certain folder
 
 fx_saveSHP <- function(sf, output_path = geo_output_path,
@@ -350,7 +450,7 @@ fx_Read_RDS_Objects <- function(input_path = input_path) {
   return(as.data.frame(lst))
 }
 
-########################################################
+####
 fx_Read_CSV_Objects <- function(input_path) {
   print(input_path)
 
@@ -375,7 +475,7 @@ fx_Read_CSV_Objects <- function(input_path) {
   return(as.data.frame(lst))
 }
 
-########################################################
+####
 fx_Read_SHP_Objects <- function(input_path) {
   print(input_path)
 
@@ -400,7 +500,7 @@ fx_Read_SHP_Objects <- function(input_path) {
   return(as.data.frame(lst))
 }
 
-########################################################
+####
 fx_Read_XLS_Objects <- function(input_path) {
   library(readxl)
 
@@ -478,6 +578,7 @@ fx_reportFields <- function(tb,
   col_index <- 1:dim(tb)[2]
   number_of_nulls <- sapply(tb, function(x) sum(is.na(x)))
   #number_of_infs <- sapply(tb, function(x) sum(is.infinite(x)))
+  
   df_name = substitute(tb)
 
   tb_report <- cbind(
@@ -517,14 +618,14 @@ fx_reportFieldsPar <- function(...,
     col_index <- 1:length(tb)
 
     number_of_nulls <- sapply(tb, function(x) sum(is.na(x)))
-    #number_of_infs <- sapply(tb, function(x) sum(is.infinite(x)))
+    number_of_infs <- sapply(tb, function(x) sum(is.infinite(unlist(x))))
 
     df_name = object_names[i]
 
     tb_report <- cbind(
       col_class, col_type,
       number_of_nulls,
-      #number_of_infs,
+      number_of_infs,
       col_index
     )
 
@@ -615,10 +716,29 @@ fx_saveRObjectsNList <- function(NamedList, output_path = output_path,
   })
 }
 
-#######################################
+
 # Save each object given as a parameter
 fx_saveRObjects <- function(...,
-                           prefix = "88", suffix = "",
+                            prefix = "88", suffix = "",
+                            output_path = output_path) {
+  objects <- list(...)
+  object_names <- sapply(substitute(list(...))[-1], deparse)
+  
+  sapply(1:length(objects), function(i) {
+    filename = file.path(output_path = output_path,
+                         paste0(prefix, "_",
+                                object_names[i], "_",
+                                suffix,
+                                ".rds"))
+    
+    saveRDS(objects[i], filename)
+  })
+}
+
+
+# Save each object given as a parameter // To develop // ----
+fx_store_objects <- function(...,
+                           prefix = "", suffix = "",
                            output_path = output_path) {
   objects <- list(...)
   object_names <- sapply(substitute(list(...))[-1], deparse)
@@ -634,8 +754,7 @@ fx_saveRObjects <- function(...,
   })
 }
 
-
-########################################################
+### 
 # f(x): Append prefix or suffix to colnames
 # https://stackoverflow.com/questions/35697940/append-suffix-to-colnames
 fx_fixColNames <- function(df, prefix="", suffix="", sep="_")
@@ -679,72 +798,6 @@ fx_savePlots <- function(
 }
 
 
-# f(x): Write a csv file (with added row numbers) on a certain folder
-fx_varSum <- function(df,
-                       fileds = selected_fields,
-                       param = k_param, scale = suffix,
-                       project_name = project_name){
-
-df_summary_stats <- df %>%
-  st_drop_geometry() %>%
-  summarise_at(fileds,
-
-               funs(
-                 .median = round(median(.,na.rm = TRUE), 2),
-                 .mean = round(mean(.,na.rm = TRUE), 2),
-                 .sd = round(sd(.,na.rm = TRUE), 2),
-                 .sum = round(mean(.,na.rm = TRUE), 2),
-                 min = round(min(.,na.rm = TRUE), 2),
-                 max = round(max(.,na.rm = TRUE), 2),
-                 Q1st = round(quantile(., probs = .25, na.rm = TRUE), 2),
-                 Q3rd = round(quantile(., probs = .75, na.rm = TRUE), 2),
-                 Prcntile15 = round(quantile(., probs = .15, na.rm = TRUE), 3),
-                 Prcntile25 = round(quantile(., probs = .25, na.rm = TRUE), 3),
-                 Prcntile35 = round(quantile(., probs = .35, na.rm = TRUE), 3),
-                 Prcntile45 = round(quantile(., probs = .45, na.rm = TRUE), 3),
-                 Prcntile55 = round(quantile(., probs = .55, na.rm = TRUE), 3),
-                 Prcntile65 = round(quantile(., probs = .65, na.rm = TRUE), 3),
-                 Prcntile75 = round(quantile(., probs = .75, na.rm = TRUE), 3),
-                 Prcntile85 = round(quantile(., probs = .85, na.rm = TRUE), 3),
-                 Prcntile95 = round(quantile(., probs = .95, na.rm = TRUE), 3)
-               )
-  ) %>%
-  mutate(scale = scale) %>%
-  mutate(nrow = nrow(df)) %>%
-  mutate(param = param) %>%
-  mutate(project_name = project_name)
-
-return(df_summary_stats)
-}
-
-######################################################## Keep this
-# print the list of available helper functions
-fx_fxView <- function(pat="fx_")
-{
-  cat("\n", "List start up objects:", "\n")
-  print(ls(pat = pat))
-  return(print(ls(pat = pat)))
-}
-
-cat("\n", "List start up objects:", "\n")
-fx_list <- ls(pat = "fx_")
-print(fx_list)
-
-
-# f(x): take sf point and return sf voronoi with data
-fx_VoronoiPolygons_fromSF <- function(points){
-  if(!all(st_geometry_type(points) == "POINT")){
-    stop("Input not  POINT geometries")
-  }
-  g = st_combine(st_geometry(points)) # make multipoint
-  v = st_voronoi(g)
-  v = st_collection_extract(v)
-  w = v[unlist(st_intersects(points, v))]
-  pv = st_set_geometry(points, w)
-  return(pv)
-}
-
-
 bitcodes <- function(x) {
   if (x %% 1 != 0) {
     return(NA_real_)
@@ -758,45 +811,283 @@ bitcodes <- function(x) {
   return(non_zero_items)
 }
 
-# Visualization functions----
-fx_ehe_ece_iwd_plot <- function(terralayer, output_path,
-                                selected_day = selected_day,
-                                n = impacted_stations,
-                                caption = "Data Source: NOAA Integrated Surface Database (ISD)") {
-  
-  interpolated_EHCE_plot <-  ggplot() +
-    geom_spatraster(data = terralayer) +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red",
-                         midpoint = 0, na.value = "white") +
-    #
-    geom_sf(data = us_census_pop,
-            fill = NA,
-            color = "Black",
-            lwd = .4) +
-    
-    geom_sf(data = idw_ehce_contour,
-            color = "Black",
-            lwd = .3) +
-    
-    labs(title = paste0("Extreme Event Date: ",  selected_day)) +
-    labs(subtitle = paste0(n, " station(s) impacted within Contiguous U.S.")) +# (", year, ")")) +
-    labs(caption = caption) +
-    
-    geom_sf(data = station_points_SF,
-            color = "Black",
-            size = .2)  #+
-  #theme_blank()
-  
-  plot_file_name <- paste0(plots_output_path, "/",
-                           "ehe_ece_iwd_",
-                           #"_contour_overlay_",
-                           selected_day,
-                           ".jpg")
-  
-  tic()
-  ggsave(plot_file_name,
-         plot = interpolated_EHCE_plot,
-         dpi = 300,
-         width = 32, height = 24, units = "cm")
-  print(fx_toc(interpolated_EHCE_plot, 0, selected_day_label))
+normalize_by_range <- function(x)
+{
+  if (min(x) < 0) {
+    x <- - x
+    x <- - log(1 + round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
+  } else {
+    x <- log(1 + round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
+  }
+  return(x)
+  # }
+  #
+  # norm_x <- (round((x - min(x, na.rm = T)) / (max(x, na.rm = T) - min(x, na.rm = T)), 3) * 100)
+  # return(norm_x)
 }
+
+
+fx_validation_summary_stats <- function(df = df,
+                             fields = selected_fields,
+                             prefix = "+", suffix = "",
+                             folder = output_path) {
+  library(dplyr)
+  library(broom)
+  
+  summary_stats_df <- df %>%
+    dplyr::summarise(n_records = n(),
+                     n_stations = n_distinct(station_id),
+                     ccoefficient_idw = round(cor(temperature_avg, temperature_avg_62_idw, 
+                                                  use = "complete.obs"), 3),
+                     ccoefficient_nn = round(cor(temperature_avg, temperature_avg_nn_idw, 
+                                                 use = "complete.obs"), 3),
+                     ccoefficient_gm = round(cor(temperature_avg, temperature_avg_gridmet, 
+                                                 use = "complete.obs"), 3),
+                     
+                     #p_value_idw_noaa = round(t.test(temperature_avg, temperature_avg_62_idw)$p.value, 5),
+                     #p_value_nn_noaa = round(t.test(temperature_avg, temperature_avg_nn_idw)$p.value, 5),
+                     #p_value_gm_noaa = round(t.test(temperature_avg, temperature_avg_gridmet)$p.value, 5),
+                     
+                     p_value_idw_nn = round(t.test(temperature_avg_62_idw, temperature_avg_nn_idw)$p.value, 5),
+                     p_value_idw_gm = round(t.test(temperature_avg_62_idw, temperature_avg_gridmet)$p.value, 5),
+                     p_value_gm_nn = round(t.test(temperature_avg_gridmet, temperature_avg_nn_idw)$p.value, 5),
+
+                     r2_idw = round(cor(temperature_avg, temperature_avg_62_idw, use = "complete.obs")^2, 3),
+                     r2_nn = round(cor(temperature_avg, temperature_avg_nn_idw, use = "complete.obs")^2, 3),
+                     r2_gm = round(cor(temperature_avg, temperature_avg_gridmet, use = "complete.obs")^2, 3),
+                     
+                     improved_R2_idw_over_nn = round(r2_idw - r2_nn, 3),
+                     improved_R2_idw_over_gm = round(r2_idw - r2_gm, 3),
+                     improved_R2_gm_over_nn = round(r2_gm - r2_nn, 3),
+
+                     across(all_of(selected_fields),
+                            list(
+                              mean = ~round(mean(., na.rm = TRUE), 2),
+                              sd = ~round(sd(., na.rm = TRUE), 2),
+                              var = ~round(var(., na.rm = TRUE), 2),
+                              median = ~round(median(., na.rm = TRUE), 2),
+                              max = ~round(max(., na.rm = TRUE), 2)
+                              #min = ~round(min(., na.rm = TRUE), 2),
+
+                            ),
+                            .names = "{fn}__{col}")) %>%
+    mutate(sample = i) %>% 
+    
+    # mutate(Improved_by_IDW_over_NN =
+    #          round((mean__Abs_Residuals_NN - mean__Abs_Residuals_IDW) / mean__Abs_Residuals_NN, 5)) %>%
+    # mutate(Improved_by_IDW_over_GM =
+    #          round((mean__Abs_Residuals_GM - mean__Abs_Residuals_IDW) / mean__Abs_Residuals_GM, 5)) %>% 
+    
+    mutate(RMSE_IDW = round(sqrt(mean__SquaredError_IDW), 3),
+           RMSE_NN = round(sqrt(mean__SquaredError_NN), 3),
+           RMSE_GM = round(sqrt(mean__SquaredError_GM), 3)) %>% 
+    
+    mutate(R2_IDW = round(1 - (RMSE_IDW^2 / var__temperature_avg), 3),
+           R2_NN = round(1 - (RMSE_NN^2 / var__temperature_avg), 3),
+           R2_GM = round(1 - (RMSE_GM^2 / var__temperature_avg), 3)) %>% 
+
+    mutate(R2_Improved_by_IDW_over_NN = round(R2_IDW - R2_NN, 3),
+           R2_Improved_by_IDW_over_GM = round(R2_IDW - R2_GM, 3),
+           R2_Improved_by_GM_over_NN = round(R2_GM - R2_NN, 3))  #%>%
+    # mutate(across(starts_with("r2_"), list(
+    #   ci_lower = ~ round(qf((1 - conf.level) / 2, 1, n_records - 2, lower.tail = TRUE, ncp = . * (n_records - 2)) / (n_records - 1 + qf((1 - conf.level) / 2, 1, n_records - 2, lower.tail = TRUE, ncp = . * (n_records - 2))), 3),
+    #   ci_upper = ~ round(qf(1 - (1 - conf.level) / 2, 1, n_records - 2, lower.tail = TRUE, ncp = . * (n_records - 2)) / (n_records - 1 + qf(1 - (1 - conf.level) / 2, 1, n_records - 2, lower.tail = TRUE, ncp = . * (n_records - 2))), 3)
+    # ), .names = "{col}_{fn}"))
+    
+    
+  stats_filename <- file.path(folder,
+                              paste0(
+                                prefix,
+                                substitute(df), "_[",
+                                length(fields),
+                                "_columns]_",
+                                "stats_(sample",
+                                suffix,
+                                ").csv"))
+  
+  write.table(summary_stats_df,
+              stats_filename, sep = ",",
+              row.names = F, 
+              col.names = T,
+              append = FALSE)
+  
+  collecting_stats_filename <- file.path(runtime_path,
+                                     paste0(prefix, "_",
+                                            substitute(df),
+                                            "_stats_all_samples_(", 
+                                            time_period,
+                                            ").csv"))
+  write.table(summary_stats_df,
+              collecting_stats_filename, 
+              row.names = F, 
+              col.names = !file.exists(collecting_stats_filename),
+              sep = ",",
+              append = T)
+  # sort the column names ----
+  summary_stats_df_sorted <- summary_stats_df[, order(names(summary_stats_df))]
+  
+  dir.create(file.path(runtime_path, "_sorted_summaries"), 
+             recursive = TRUE, showWarnings = FALSE)
+  sorted_summaries_path <- file.path(runtime_path, "_sorted_summaries")
+  
+  collecting_stats_sorted_filename <- file.path(sorted_summaries_path,
+                                         paste0(prefix, "_",
+                                                substitute(df),
+                                                "_stats_all_samples_(", 
+                                                time_period,
+                                                ")_sorted.csv"))
+  write.table(summary_stats_df_sorted,
+              collecting_stats_sorted_filename, 
+              row.names = F, 
+              col.names = !file.exists(collecting_stats_sorted_filename),
+              sep = ",",
+              append = T)
+
+  #return(summary_stats_df)
+#}
+  # Main function
+  # fx_validation_summary_stats2 <- function(df, fields, 
+  #                                          prefix = "+", suffix = "", 
+  #                                          folder = output_path) {
+    
+  # library(broom) # for tidy statistical summaries
+  # 
+  # # Helper function to compute paired t-test and retrieve p-value and confidence interval
+  #  perform_paired_t_test <- function(observed, model1, model2) {
+  #    test_result <- t.test(model1 - observed, model2 - observed, paired = TRUE)
+  #    return(tidy(test_result)[, c("estimate", "p.value", "conf.low", "conf.high")])
+  #  }
+  # 
+  #   summary_stats_df2 <- df %>%
+  # 
+  #      rowwise() %>%
+  #      mutate(
+  #        idw_nn_test = list(perform_paired_t_test(temperature_avg, temperature_avg_62_idw, temperature_avg_nn)),
+  #        idw_gm_test = list(perform_paired_t_test(temperature_avg, temperature_avg_62_idw, temperature_avg_gridmet))
+  #      ) %>%
+  #      unnest(c(idw_nn_test, idw_gm_test))
+  #   
+  #   dir.create(file.path(runtime_path, "_sorted_summaries"), 
+  #              recursive = TRUE, showWarnings = FALSE)
+  #   sorted_summaries_path <- file.path(runtime_path, "_sorted_summaries")
+  #   
+  #   collecting_stats_refactored_filename <- file.path(sorted_summaries_path,
+  #                                                 paste0(prefix, "_",
+  #                                                        substitute(df),
+  #                                                        "_stats_all_samples_(", 
+  #                                                        time_period,
+  #                                                        ")_refactored.csv"))
+  #   write.table(summary_stats_df2,
+  #               collecting_stats_refactored_filename, 
+  #               row.names = F, 
+  #               col.names = !file.exists(collecting_stats_refactored_filename),
+  #               sep = ",",
+  #               append = T)
+    
+    return(summary_stats_df)
+  }
+  
+
+
+events_summary_stats <- function(data, group_vars, summary_vars, 
+                                 params, rnd = 1) {
+  summary_df <- data %>%
+    group_by(across(all_of(group_vars))) %>%
+    
+    summarise(
+      Number_of_Records = n(),
+      Distinct_Impacted_Stations = n_distinct(station_id),
+      Distinct_Impacted_Days = n_distinct(DATE),
+      Distinct_Events_Universal = n_distinct(UID, na.rm = TRUE),
+      #Distinct_Events_Stations = n_distinct(STEUID, na.rm = TRUE),
+      
+      #Average_Events_per_Impacted_Station = round((Distinct_Events_Stations / Distinct_Impacted_Stations), 2),
+      Average_Days_per_Impacted_Station = round((Distinct_Impacted_Days / Distinct_Impacted_Stations), 2),
+      #Average_Impacted_Station_per_Day = round((Distinct_Events_Stations / Distinct_Impacted_Days), 2),
+      #Average_Impacted_Station_per_Event = round((Distinct_Impacted_Days / Distinct_Events_Stations), 2),
+      
+      across(all_of(summary_vars),
+             list(
+               null = ~sum(is.na(.)),
+               inf = ~sum(is.infinite(.)),
+               avg = ~round(mean(as.double(.), na.rm = T), rnd),
+               min = ~round(min(as.double(.), na.rm = T), rnd),
+               max = ~round(max(as.double(.), na.rm = T), rnd),
+               median = ~median(as.double(.), na.rm = T),
+               sd = ~round(sd(as.double(.), na.rm = T), rnd),
+               Q1 = ~round(quantile(., probs = .25, na.rm = TRUE), rnd),
+               Q3 = ~round(quantile(., probs = .75, na.rm = TRUE), rnd)
+             )),
+      .groups = 'drop')
+  
+  write.csv(summary_df,
+            
+            file.path(tables_output_path,
+                      paste0(substitute(group_vars),
+                             "_ehe_ece_summary_",
+                             params,
+                             "_",
+                             nrow(summary_df), "x",
+                             ncol(summary_df),
+                             ".csv")),
+            
+            row.names = TRUE)
+  
+  return(summary_df)
+}
+
+# f(x): Write a csv file (with added row numbers) on a certain folder
+fx_varSum <- function(df,
+                      fields = selected_fields,
+                      prefix = "", suffix = "scale",
+                      param = "project_name",
+                      folder = table_output_path){
+  
+  df_summary_stats <- df %>%
+    st_drop_geometry() %>%
+    #dplyr::summarise(n = n(),
+    summarise_at(fields,
+                 
+                 funs(
+                   n = n(),
+                   median = round(median(.,na.rm = TRUE), 2),
+                   mean = round(mean(.,na.rm = TRUE), 2),
+                   sd = round(sd(.,na.rm = TRUE), 2),
+                   .sum = round(mean(.,na.rm = TRUE), 2),
+                   min = round(min(.,na.rm = TRUE), 2),
+                   max = round(max(.,na.rm = TRUE), 2),
+                   Q1st = round(quantile(., probs = .25, na.rm = TRUE), 2),
+                   Q3rd = round(quantile(., probs = .75, na.rm = TRUE), 2),
+                   Prcntile15 = round(quantile(., probs = .15, na.rm = TRUE), 3),
+                   Prcntile25 = round(quantile(., probs = .25, na.rm = TRUE), 3),
+                   Prcntile35 = round(quantile(., probs = .35, na.rm = TRUE), 3),
+                   Prcntile45 = round(quantile(., probs = .45, na.rm = TRUE), 3),
+                   Prcntile55 = round(quantile(., probs = .55, na.rm = TRUE), 3),
+                   Prcntile65 = round(quantile(., probs = .65, na.rm = TRUE), 3),
+                   Prcntile75 = round(quantile(., probs = .75, na.rm = TRUE), 3),
+                   Prcntile85 = round(quantile(., probs = .85, na.rm = TRUE), 3),
+                   Prcntile95 = round(quantile(., probs = .95, na.rm = TRUE), 3)
+                 )
+    ) %>%
+    mutate(nrow = n()) # %>%
+  #mutate(scale = scale) %>%
+  #mutate(param = param) %>%
+  #mutate(project_name = project_name)
+  
+  return(df_summary_stats)
+}
+############################################## Keep this at the bottom
+# print the list of available helper functions
+fx_fxView <- function(pat="fx_")
+{
+  cat("\n", "List start up objects:", "\n")
+  print(ls(pat = pat))
+  return(print(ls(pat = pat)))
+}
+
+cat("\n", "List start up objects:", "\n")
+fx_list <- ls(pat = "fx_")
+print(fx_list)
+
+
+
