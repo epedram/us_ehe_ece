@@ -48,10 +48,7 @@ task_title <- geography
 
 spatial_projection <-  3857 # #epsg 3857 that is commonly used for web mapping
 spatial_projection_lonlat <- 4269 # CRS that is used to transform lon-lat data (based on NAD 83)
-#5070 #Albers Equal Area Projection (EPSG code 9822).
-#32610 #EPSG:32610 WGS 84 / UTM zone 10N
-#4326 #WGS83 used for GPS
-#https://bookdown.org/mcwimberly/gdswr-book/coordinate-reference-systems.html
+
 
 default_crs = sf::st_crs(spatial_projection_lonlat)
 sf_use_s2(FALSE)
@@ -74,7 +71,6 @@ file.exists(source_dir)
 file.exists(input_dir)
 
 # set the I/O path -----
-#input_dir <- "~/"
 
 dir.create(file.path(reports_path, paste0("imputed_daily_data")))
 imputed_outputs_path <- file.path(reports_path, paste0("imputed_daily_data"))
@@ -82,12 +78,6 @@ imputed_outputs_path <- file.path(reports_path, paste0("imputed_daily_data"))
 dir.create(file.path(reports_path, paste0("variables_distribution")))
 distplot_outputs_path <- file.path(reports_path, paste0("variables_distribution"))
 
-# Set up computational parameters ----
-#spatial_projection  = 4269 #NAD83
-
-# # Computational script ----
-# noaa_isd_2021_sf_ca_state_100km_simplified <- readRDS(file.path(input_dir,
-#                                                               "noaa_isd_2021_sf_ca_state_100km_simplified.rds"))[[1]]
 
 # Load daily and annual summaries from compiled yearly files
 processed_daily_data_path <- file.path(input_dir,
@@ -105,28 +95,17 @@ daily_processed_data_list <- list.files(path = processed_daily_data_path,
 annual_processed_data_list <- list.files(path = processed_annual_data_path,
                                         pattern = "*rds*")
 
-#all_daily_summary_collector <- list()
-#all_annual_summary_collector <- list()
 
 # Merge all the yearly tables for the entire study period-----
 fx_completeness_code_to_daily <-  function(i) {
   gc()
-#sapply(1:length(daily_processed_data_list), function(i) {
   print(i)
 
   # ANNUAL ----
-  #annual_processed_data_list[[1]]
-  #i =1
+
   each_year_annual_df <- readRDS(file.path(processed_annual_data_path,
                                          annual_processed_data_list[[i]])) %>%
-  #glimpse(each_year_annual_df)
 
-    # mutate(completeness_above_98_percent =
-    #          case_when(
-    #            (temperature_comp_ratio > 0.98 &
-    #              temperature_dewpoint_comp_ratio > 0.98 &
-    #              wind_speed_comp_ratio > 0.98)
-    #            ~ 1L, TRUE ~ 0)) %>%
     mutate(completeness_above_95_percent =
              case_when(
                (temperature_comp_ratio >= 0.95 &
@@ -169,7 +148,6 @@ fx_completeness_code_to_daily <-  function(i) {
              completeness_above_70_percent + completeness_above_75_percent +
              completeness_above_80_percent + completeness_above_85_percent +
              completeness_above_90_percent + completeness_above_95_percent,
-             #completeness_above_98_percent,
 
              completeness_percent = 100-((maxcode - completeness_code)*5))
   
@@ -196,8 +174,7 @@ fx_completeness_code_to_daily <-  function(i) {
           all.x = TRUE)
   
   return(list(each_year_daily_df, each_year_annual_df))
-  #all_daily_summary_collector[[i]] <- each_year_daily_df
-  #all_annual_summary_collector[[i]] <- each_year_annual_df
+
 }
 # Compile summaries ----
 ## Annual-----
@@ -264,11 +241,6 @@ write.csv(all_daily_inf2na_notimputed,
           row.names = T)
 
 glimpse(all_daily_inf2na_notimputed)
-
-# saveRDS(all_daily_inf2na_notimputed, file=file.path(reports_path,
-#                                                paste0("summary_all_daily_inf2na_notimputed_",
-#                                                       time_period,
-#                                                       ".rds")))
 
 fx_reportFieldsPar(
   all_daily_inf2na_notimputed,

@@ -12,8 +12,6 @@ library(tidyverse)
 library(sf)
 library(sp)
 library(stars)
-#library(gstat)
-#library(ncdf4)
 library(tictoc)
 library(getopt)
 library(doParallel)
@@ -32,7 +30,6 @@ opt = getopt(spec)
 job_id <- opt$job_id
 
 cores <- as.integer(opt$cores)
-#cores <- 3 # // [runtime settings] O2 / Cores ==== 
 
 cellsize <- opt$cellsize
 #cellsize <-  4000 # // [runtime settings] O2 / Cell ====
@@ -40,10 +37,6 @@ cellsize <- opt$cellsize
 nmax = 6 
 idp = 2
 
-#nmax = 1L
-#idp = 0L
-
-#filename <- file.choose()
 
 pointer <- "archiveX" # // [runtime settings] O2 / Outputs ==== 
 
@@ -84,26 +77,8 @@ task_title <- paste(idw_var, cellsize, nmax, idp,
                     sep = "_")
 
 
-#spatial_projection <-  5070 #Albers Equal Area Projection (EPSG code 9822).
-#spatial_projection <-  32610 #EPSG:32610 WGS 84 / UTM zone 10N
-#spatial_projection <-  4326 #WGS83 used for GPS
 spatial_projection <-  3857 # #epsg 3857 that is commonly used for web mapping
 spatial_projection_lonlat <- 4269 # CRS that is used to transform lon-lat data (based on NAD 83)
-
-# class(station_points_SF)
-# glimpse(station_points_SF)
-# 
-# dim(station_points_SF)
-# sum(!is.na(station_points_SF$elev_m))
-# sum(is.na(station_points_SF$elev_m))
-# 
-# station_points_SP <- as_Spatial(station_points_SF,#us_census_pop,
-#                                 cast = TRUE)
-# 
-# class(station_points_SP)
-# 
-# station_points_SP_NN <- station_points_SP[!is.na(station_points_SP$"elev_m"), ]
-# dim(station_points_SP_NN)
 
 default_crs = sf::st_crs(spatial_projection_lonlat)
 
@@ -166,15 +141,6 @@ climate_regions_geo <- states_geo %>%
   st_transform(spatial_projection) %>% 
   st_cast(., "MULTIPOLYGON")
 
-plot(climate_regions_geo["Climate_Region"])
-#glimpse(climate_regions_geo)
-#glimpse(states_geo)
-
-# urban_file_path <- file.path(source_dir,
-#                              "00_base_spatial_layers_grids_census_admin_boundaries", 
-#                              "us49_urban_geo_states_tigris.rds")
-# urban_geo <- readRDS(zctas_file_path)[[1]] 
-
 nation_geo <- states_geo %>%
   #group_by(Climate_Region) %>%
   filter(Climate_Region != "Other") %>% 
@@ -206,14 +172,7 @@ stations_geo <- readRDS(stations_geo_path) %>%
         all.x = TRUE,
         suffix = c("","_sp"))
 
-#glimpse(stations_geo)
-
 map_divisions <- states_geo
-
-#glimpse(states_geo)
-#glimpse(counties_geo)
-#glimpse(tracts_geo)
-plot(map_divisions[1])
 
 fx_reportFieldsPar(
   states_geo,
@@ -245,7 +204,6 @@ ehe_ece <- fx_combine_rds(inputs_dir, "EHE_ECE_events_only") %>%
   mutate(EHCMI = EHMI + ECMI) %>% 
   mutate(EHC = EH + EC)
 
-#glimpse(ehe_ece)
 # compute normalized indicators
 ehe_ece <- ehe_ece %>%
   filter(Event_duration > 0) %>% 
@@ -258,7 +216,6 @@ ehe_ece <- ehe_ece %>%
   filter(!is.na(station_name)) %>%
   
   ### Geog set 2 ----
-  #filter(state %in% geog) %>%
   mutate(EHMI_normalized_by_range_global = fx_normalize_by_range(EHMI),
        ECMI_normalized_by_range_global = fx_normalize_by_range(ECMI)) %>%
   mutate(EHCMI_normalized =
@@ -280,24 +237,8 @@ ehe_ece <- ehe_ece %>%
 selected_period_geo_events_only <- ehe_ece %>%
   filter(DATE >= start_date &
          DATE <= end_date)
-#glimpse(selected_period_geo_events_only)
 
 fx_toc(selected_period_geo_events_only, 0, model_params, "station_based")
-
-summary(ehe_ece$EHF)
-summary(ehe_ece$ECF)
-#hist(ehe_ece$EHF_normalized_by_range_global)
-#hist(ehe_ece$ECF_normalized_by_range_global)
-
-summary(ehe_ece$EH)
-summary(ehe_ece$EC)
-#hist(ehe_ece$EH_normalized_by_range_global)
-#hist(ehe_ece$EC_normalized_by_range_global)
-
-summary(ehe_ece$EHMI)
-summary(ehe_ece$ECMI)
-#hist(ehe_ece$EHMI_normalized_by_range_global)
-#hist(ehe_ece$ECMI_normalized_by_range_global)
 
 # + + + Thresholds ----
 EHE_threshold <- quantile(ehe_ece$EHMI_normalized_by_range_global,
@@ -311,12 +252,6 @@ ECE_threshold <- quantile(ehe_ece$ECMI_normalized_by_range_global,
                           probs= 0.50, na.rm=TRUE)
 
 probs <- c(0, .15, .50, .75, 1)
-
-# EHE_threshold_set <- quantile(ehe_ece$EHMI_normalized_by_range_global,
-#                            probs = probs, na.rm=TRUE)
-# 
-# ECE_threshold_set <- quantile(ehe_ece$ECMI_normalized_by_range_global,
-#                                probs = probs, na.rm=TRUE)
 
 unique(ehe_ece$completeness_code)
 unique(ehe_ece$EF_distribution_set)
@@ -334,14 +269,7 @@ masking_layer <- as_Spatial(map_divisions,#us_census_pop,
 
 station_points_SF <- stations_geo %>%
   ### Geog set 4 ----
-  #filter(state %in% geog) %>%
   st_transform(spatial_projection) 
-  
-  #glimpse(station_points_SF)
-  plot(station_points_SF[4])
-
-st_crs(stations_geo)
-st_crs(station_points_SF)
 
       tic()
       blank_grid_file_path <- file.path(source_dir, 
@@ -353,21 +281,11 @@ st_crs(station_points_SF)
                                         )
       blank_grid <- readRDS(blank_grid_file_path)
       
-      #blank_grid <- st_crop(blank_grid,
-      #                       states_geo)
         plot(blank_grid)
         plot(masking_layer, add = T, col = "orange")
       fx_toc(blank_grid, 1, start_year, "model_input_stars_clipped")
                                         ### ( + GRID + ) ----
       tic()
-       #blank_grid_sp_file_path <- file.path(source_dir,
-        #                                 "Grids",
-                                         #paste0("blank_grid_SP_clipped_",
-                                          #      cellsize,
-                                           #     "_from_stars.rds"))
-         #                                "blank_grid_SP_500_spsample.rds")
-       
-      #blank_grid_SP <- readRDS(blank_grid_sp_file_path)
       blank_grid_SP = as(blank_grid, "Spatial")
       
       # calculate the exact number of cells in the idw
@@ -383,16 +301,8 @@ st_crs(station_points_SF)
       idw_blank_raster[(idw_blank_raster < 1)] <- NA 
       
       total_grids <- length(idw_blank_raster[!is.na(idw_blank_raster)])
-      
-      # blank_grid_stars_clipped <- st_crop(blank_grid,
-      #                                     states_geo)
-      # length(blank_grid_stars_clipped[[1]])
-      # 
-        #plot(blank_grid_SP)
-        #plot(masking_layer, add = T, col = "yellow")
-      
+
       fx_toc(blank_grid_SP, 1, start_year, "model_input_sp_clipped")
-      #ls(pat = "fx_")
 
    fx_reportFieldsPar(
      stations_geo,
@@ -444,9 +354,6 @@ dir.create(file.path(reports_path , paste0("viz_idw_ehce_plots_", cellsize)))
 idw_outputs <- file.path(reports_path, paste0("viz_idw_ehce_plots_", cellsize))
 
 
-
-
-
 # {{ + initiate the temporal loop + }} ----
 library(doParallel)
 
@@ -457,7 +364,7 @@ cl <- makeCluster(cores, outfile = file.path(runtime_path, paste0("foreach_logs_
 # register the cluster
 registerDoParallel(cl)
 
-foreach(#daily_data = daily_data_segments,
+foreach(
  i = 1:length(daily_data_segments),
        .multicombine = TRUE,
        .verbose = TRUE,
@@ -479,8 +386,6 @@ print(Sys.time())
             library(tidyterra)
             library(logger)
          
-#for(i in 1:length(daily_data_segments)){
-  #i <- 1
          logger_file <- file.path(runtime_path, paste0("logger_outputs_",
                                                            start_year,
                                                            ".log"))
@@ -513,7 +418,6 @@ print(Sys.time())
     filter(DATE == selected_day) # %>%
   
   impacted_stations <- length(unique(selected_period_geo_events_only_tmp$station_id))
-  #dplyr::select(contains("MI") | contains("id")), # %>% st_drop_geometry()
 
     station_points_SF_day <-
       merge(station_points_SF, #stations_geo,
@@ -523,8 +427,7 @@ print(Sys.time())
             all.x = TRUE,
             suffix = c("","_sp")) %>%
       mutate(EHCMI_normalized = replace_na(EHCMI_normalized, 0))
-      #mutate_if(is.numeric, list(~replace_na(., 0))) 
-    
+
     rm(selected_period_geo_events_only_tmp)
     
     station_points_SP <- as_Spatial(station_points_SF_day,
@@ -545,7 +448,6 @@ print(Sys.time())
 idw_ehce_boundaries_sf <- idw_runtime[[1]]
 idw_ehce_terra_raster <- idw_runtime[[2]]
 trimmed_grid_stars <- idw_runtime[[3]]
-#idw_ehce_raster_unified <- idw_runtime[[4]]
 
 rm(idw_runtime)
 
@@ -558,17 +460,15 @@ rm(idw_runtime)
                         "EHCMI_normalized")
     
 tic()
+
 # interpolated_idw_stack ++++ ----
-#ls(station_points_SP@data)
 vars_list <- list(
   c("temperature_avg", "temperature_avg ~ 1"),
   c("relative_humidity_avg", "relative_humidity_avg ~ 1"),
   c("wind_speed_avg", "wind_speed_avg ~ 1"),
-  ## c("EHCMI", "EHCMI ~ 1"),
   c("EHCMI_normalized", "EHCMI_normalized ~ 1"),
-  ## c("EHCF", "EHCF ~ 1"),
+
   c("EHCF_normalized", "EHCF_normalized ~ 1"),
-  ## c("EHC", "EHC ~ 1"),
   c("EHC_normalized", "EHC_normalized ~ 1"),
   c("DM_AT", "DM_AT ~ 1"))
 

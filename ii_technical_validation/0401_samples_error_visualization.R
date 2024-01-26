@@ -14,7 +14,6 @@ end_year <-  2022L
 gc()
 
 tic()
-#ls(validation_compiled_test20_delta)
 
 validation_results_disaggregate_tb <- validation_compiled_test20_delta %>%
   mutate(SquaredError_IDW = (delta_idw ^ 2),
@@ -46,13 +45,6 @@ validation_results_disaggregate_tb <- validation_compiled_test20_delta %>%
 
 fx_toc(validation_results_disaggregate_tb, 1, time_period, i)
 
-# write.csv(validation_results_disaggregate_tb,
-#           paste0(tables_output_path, "/",
-#                  time_period, 
-#                  "_validation_results_disaggregate_tb", 
-#                  "_sample_", i,
-#                  ".csv"),
-#           row.names = TRUE
 # Aggregation stats ----
 log_debug(paste0("(Sample ", i, ") Computing aggregated stats started"))
 tryCatch({
@@ -342,15 +334,6 @@ variables_to_plot <- c(
 ## Scatterplots ----
 tryCatch({
 
-# map("Overall", ~ {
-#   category_df <- validation_results_long_table
-#   print(.x)
-#   print(dim(category_df))
-#   fx_r2_plot(category_df, "temperature_avg", "temperature_avg_gridmet",
-#              "Aggregation",
-#              .x, i, plots_output_path)
-# })
-
 # # Use purrr::map to iterate over both years and variables
 map(variables_to_plot, ~ {
     variable <- .x
@@ -390,55 +373,5 @@ map(variables_to_plot, ~ {
   log_error(conditionMessage(e))
 })
 
-## Scatterplots (2)----
-tryCatch({
-
-  # map("Overall", ~ {
-  #   category_df <- validation_results_long_table
-  #   print(.x)
-  #   print(dim(category_df))
-  #   fx_r2_plot(category_df, "temperature_avg", "temperature_avg_gridmet",
-  #              "Aggregation",
-  #              .x, i, plots_output_path)
-  # })
-  
-  # # Use purrr::map to iterate over both years and variables
-  map(variables_to_plot, ~ {
-    variable <- .x
-    print(variable)
-    
-    map("Overall", ~ {
-      category_df <- validation_results_long_table
-      print(.x)
-      print(dim(category_df))
-      fx_r2_plot2(category_df, "temperature_avg", variable,
-                 "Aggregation",
-                 .x, i, plots_output_path)
-    })
-    
-    map(1:12, ~ {
-      category_df <- validation_results_long_table %>% dplyr::filter(month_number == .x)
-      print(.x)
-      print(dim(category_df))
-      fx_r2_plot2(category_df, "temperature_avg", variable,
-                 "Month",
-                 .x, i, plots_output_path)
-    })
-    
-    map(end_year:start_year, ~ {
-      category_df <- validation_results_long_table %>% dplyr::filter(YYYY == .x)
-      print(.x)
-      print(dim(category_df))
-      fx_r2_plot2(category_df, "temperature_avg", variable,
-                 "Year",
-                 .x, i, plots_output_path)
-    })
-    
-  })
-  log_success("Scatterplots 2 completed")
-}, error = function(e){
-  log_warn("Scatterplot 2")
-  log_error(conditionMessage(e))
-})
 
 log_success(paste0("(Sample ", i, ") Data processing completed!"))

@@ -27,12 +27,10 @@ job_id <- opt$job_id
 
 ### Cores ----
 cores <- opt$cores  
-#cores <- 16 # // [runtime settings] O2 ==== 
 
 pointer <- "archiveX"
 
 project_title <- "02_compiled_tables_of_daily_values_15years"
-#project_title <- "02_compiled_tables_of_daily_values_"
 
 # set up the parameters ----
 geography <- paste("us", 49L,
@@ -40,7 +38,7 @@ geography <- paste("us", 49L,
 
 ### Temp set 0 ----
 start_year <- opt$year
-#start_year <- 2020L # // [runtime settings] O2 ====
+
 end_year <-  start_year
 
 time_period <- paste(start_year, end_year, sep = "_")
@@ -52,10 +50,6 @@ task_title <- geography
 
 spatial_projection <-  3857 # #epsg 3857 that is commonly used for web mapping
 spatial_projection_lonlat <- 4269 # CRS that is used to transform lon-lat data (based on NAD 83)
-#5070 #Albers Equal Area Projection (EPSG code 9822).
-#32610 #EPSG:32610 WGS 84 / UTM zone 10N
-#4326 #WGS83 used for GPS
-#https://bookdown.org/mcwimberly/gdswr-book/coordinate-reference-systems.html
 
 default_crs = sf::st_crs(spatial_projection_lonlat)
 sf_use_s2(FALSE)
@@ -72,13 +66,6 @@ input_dir <- file.path(source_dir,
                        "01_web_raw_hourly_data_2007_2022",
                        "processed_tables_2007_2022")
 
-# set the I/O path -----
-#input_dir <- "/n/groups/patel/pedram/climate_data/01_us_web_raw_hourly_data_2008_2022"
-
-#scratch_dir <- "/n/scratch3/users/p/pef004/climate_data/"
-#scratch_dir <- "/n/groups/patel/pedram/climate_data/"
-# cd /n/groups/patel/pedram/us_climate_data/
-# cd /n/scratch3/users/p/pef004/us_climate_data/
 
 dir.create(file.path(reports_path, paste0("missing_data_visualization")))
 missing_data_output_path <- file.path(reports_path, paste0("missing_data_visualization"))
@@ -101,9 +88,8 @@ eliminated_types <- c(
 # {{ + initiate the temporal loop + }} ----
 year_i = start_year
              
-#for (year_i in seq(start_year, end_year)) {
+
 print(Sys.time())
-  #year_i <- 2018
 
     library(here)
     library(tidyverse)
@@ -130,23 +116,9 @@ print(Sys.time())
                                length(annual_csv_list),
                                ".csv")),
               row.names = T)
-    #[106:112]
 
-    #stations_daily_compiled_tables_set <- list()
-    #stations_annual_compiled_tables_set <- list()
     parsing_type_list <- list()
 
-    #erroneous_stations_list = c()
-    #erroneous_stations_year = c()
-    #erroneous_stations_message = c()
-    #error_counter_i <- 0
-    
-    # >> Load and parse stations raw data ----
-    #sapply
-    #purrr::map
-    #station_runtime <- map
-    #lapply(1:length(annual_csv_list), function(i) 
-      #for(i in 1:length(annual_csv_list)){
     hourly_to_daily <-  function(i) {
       gc()
       tic()
@@ -164,16 +136,15 @@ print(Sys.time())
       log_threshold()
       
       cat(year_i, i, " of ", length(annual_csv_list))
-      #i=1
+
           
-        each_station_id <- annual_csv_list[[i]] #%>% str_sub(., start = 1L, end = 11L)
+        each_station_id <- annual_csv_list[[i]] 
 
         each_station_cvs_path <- file.path(stations_data_path,
                                            paste0(each_station_id, 
                                                   "_",
                                                   year_i,
                                                   ".csv"))
-                                           #annual_csv_list[[i]])
         tryCatch({
           parsed_web_file <- isdparser::isd_parse_csv(each_station_cvs_path) %>%
           ## added to resolve the transformation function bug
@@ -284,79 +255,6 @@ print(Sys.time())
                                    by="day")
           )
 
-         #  tryCatch({
-         #    print("Missing value visualization") # ====
-         #    v_missing <- visdat::vis_miss(daily_selected_vars)
-         #    v_missing_plot_fn <- paste0(missing_data_output_path, "/",
-         #                             each_station_id,
-         #                             "_vis_miss_",
-         #                             year_i,
-         #                             ".jpg")
-         # 
-         # ggsave(v_missing_plot_fn,
-         #        plot = v_missing, dpi = 200,
-         #        width = 18, height = 28, units = "cm")
-         # 
-         #    }, error = function(nonull){
-         #      cat("Visualization Error :",conditionMessage(nonull), "\n")
-         #      log_error(each_station_id)
-         #      log_warn("visualization error")
-         #    })
-        #
-        #   #visualize missing records distribution  # ====
-        #   v_missing1 <- imputeTS::ggplot_na_distribution(daily_selected_vars$temperature_avg,
-        #                                                  title = paste0("NOAA Station: ", each_station_id,
-        #                                                                 " - Variable: Temperature - Year (",
-        #                                                                 year_i,
-        #                                                                 ")"))
-        #   v_missing_plot_fn1 <- paste0(missing_data_output_path, "/",
-        #                               each_station_id,
-        #                               "_na_distribution_tmp_",
-        #                               year_i,
-        #                               ".jpg")
-        #
-        #   ggsave(v_missing_plot_fn1,
-        #          plot = v_missing1, dpi = 200,
-        #          width = 32, height = 16, units = "cm")
-        #
-        #   v_missing2 <- imputeTS::ggplot_na_distribution(daily_selected_vars$wind_speed_avg,
-        #                                                  title = paste0("NOAA Station: ", each_station_id,
-        #                                                                 " - Variable: Wind Speed - Year (",
-        #                                                                 year_i,
-        #                                                                 ")"))
-        #   v_missing_plot_fn2 <- paste0(missing_data_output_path, "/",
-        #                                each_station_id,
-        #                                "_na_distribution_wnd_",
-        #                                year_i,
-        #                                ".jpg")
-        #
-        #   ggsave(v_missing_plot_fn2,
-        #          plot = v_missing2, dpi = 200,
-        #          width = 32, height = 16, units = "cm")
-        #
-        #
-        #   v_missing3 <- imputeTS::ggplot_na_distribution(daily_selected_vars$temperature_dewpoint_avg,
-        #                                                  title = paste0("NOAA Station: ", each_station_id,
-        #                                                                 " - Variable: Dew Point Temperature - Year (",
-        #                                                                 year_i,
-        #                                                                 ")"))
-        #   v_missing_plot_fn3 <- paste0(missing_data_output_path, "/",
-        #                                each_station_id,
-        #                                "_na_distribution_dew_",
-        #                                year_i,
-        #                                ".jpg")
-        #
-        #   ggsave(v_missing_plot_fn3,
-        #          plot = v_missing3, dpi = 200,
-        #          width = 32, height = 16, units = "cm")
-        #
-        
-          # }, error = function(nonull){
-          #   cat("Visualization Error :",conditionMessage(nonull), "\n")
-          #   log_error(each_station_id)
-          #   log_warn("visualization error")
-          # })
-
         return(list(station_daily_compiled, station_annual_summary, 
                     each_station_hourly_nrow, each_station_id))
         
@@ -371,7 +269,7 @@ print(Sys.time())
         
         cat(each_station_id, "ERROR :",conditionMessage(e), "\n")
       })
-      #gc()
+
     }    # # closing the internal loop ----
       
       # Set up future map vector
@@ -486,51 +384,8 @@ print(Sys.time())
        log_debug(each_station_id)
        log_warn("compiling error")
        log_error(conditionMessage(e))
-       
-       # station_daily_compiled <- NULL
-       # station_annual_summary <- NULL
-       # each_station_hourly_nrow <- 0
+      
      })
 
-#   n_raw_hourly_records_yearly_report <- fread(file.path(reports_path,
-#                                                  paste0("all_n_raw_hourly_records_yearly_report_",
-#                                                        time_period,
-#                                                        "_2_columns.csv")))
-# # 
-#  glimpse(n_raw_hourly_records_yearly_report)
-# 
-#  hourly_records_plot <- ggplot(n_raw_hourly_records_yearly_report,
-#                              #aes(x = YYYY, y = number_of_stations,
-#                              aes(x = Year, 
-#                                  y = Rows_count)) +
-#    geom_point() +
-#    
-#    geom_line(linetype = "dashed") +
-#    labs(x = "Year",
-#         y = "Number of processed hourly records"
-#    ) +
-#    
-#    labs(title = paste0("NOAA Integrated Surface Database (ISD) - US"
-#    )) +
-#    theme_bw() +
-#    
-#    scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
-#    theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
-#    
-#    scale_y_continuous(breaks = scales::pretty_breaks(n = 14)) +
-#    theme(legend.position = "none")
-#  
-#  hourly_records_plot
-#  
-#  plot_file_name <- file.path(plots_output_path,
-#                              paste0(time_period,
-#                                     "_hourly_records_plot_",
-#                                     geography,
-#                                     ".jpg"))
-#  ggsave(plot_file_name,
-#         plot = hourly_records_plot,
-#         dpi = 300,
-#         width = 18, height = 12, units = "cm")
-    
     log_info("End of script")
     

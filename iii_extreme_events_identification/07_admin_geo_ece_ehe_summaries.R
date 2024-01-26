@@ -42,9 +42,6 @@ end_year <-  start_year + 14
 ### Temp set 1 ----
 start_date <-  as.Date(paste0(start_year, "-01-01"), format="%Y-%m-%d")
 end_date <-  as.Date(paste0(end_year, "-12-31"), format="%Y-%m-%d")
-#start_date <-  as.Date(paste0(start_year, "-02-23"), format="%Y-%m-%d")
-#start_date <-  as.Date(paste0(start_year, "-01-06"), format="%Y-%m-%d")
-#end_date <-  as.Date(paste0(end_year, "-01-30"), format="%Y-%m-%d")
 
 time_period <- paste(start_year, end_year, sep = "_")
 
@@ -56,7 +53,7 @@ model_params <- paste("us49", cc_code,
                       )
 
 # // *1 [settings] O2 / Title ====
-project_title <- "07_US_ehe_ece_catalog_65_by_stations_multivariables_scidata"
+project_title <- "07_US_ehe_ece_catalog_65_by_stations_multivariables"
 
 idw_var <- "EHCMI_minmaxlog"
 runtime_params <- "62"
@@ -67,18 +64,11 @@ task_title <- paste0(#model_params,
 geography <- paste("US_", idw_var,
                    "_idw_", cellsize,
                    sep = "_")
-### Geog set 1 ----
-geog <- c("California", "CA")
-#geog <- c("Massachusetts", "MA")
 
 
 ## Model parameters ----
 idw <-  2
 
-#spatial_projection <-  5070 #Albers Equal Area Projection (EPSG code 9822).
-#spatial_projection <-  32610 #EPSG:32610 WGS 84 / UTM zone 10N
-
-#spatial_projection <-  4326 #WGS83 used for GPS
 spatial_projection <-  3857 # #epsg 3857 that is commonly used for web mapping
 spatial_projection_lonlat <- 4269 # CRS that is used to transform lon-lat data (based on NAD 83)
 
@@ -202,15 +192,12 @@ map_divisions <- states_geo
 plot(map_divisions[1])
 
 col_names <- c("GEOID", "STUSPS", "STATE_NAME", "NAME", "Climate_Region")
-#glimpse(states_geo)
-#glimpse(zctas_geo)
-#glimpse(tracts_geo)
 
 stations_geo_path <- file.path(source_dir,
                                "00_noaa_stations_data_catalog_2007_2022",
                                "us49_stations_2007_2022.rds")
 station_points_SF <- readRDS(stations_geo_path)
-#plot(station_points_SF[1])
+
 # { ( ( ( BASE LAYER FOR SPATIAL AGGREGATION ) ) ) } ====
 ## Raster processing ====
 yearly_dataset_path <- file.path(inputs_dir,
@@ -309,97 +296,31 @@ runtime_results_path <- file.path(inputs_dir,
 
 list.files(runtime_results_path)
 
-tic()
-
-# admin_geo_label <- "Climate_Regions" # Climate_Regions ----
-# compiled_objects <- fx_combine_yearly_rds(runtime_results_path, 
-#                                           admin_geo_label, 
-#                                           climate_regions_geo,
-#                                           col_names)
-# 
-# conus_cregion_events_catalog_2008_2022_dt <- compiled_objects[[1]]
-# 
-# cregion_summary_2008_2022 <- compiled_objects[[3]]
-# 
-# cregion_summary_2008_2022_sf <- compiled_objects[[4]]
-# 
-# fx_toc(conus_cregion_events_catalog_2008_2022_dt, 1, admin_geo_label, time_period)
-# 
-# gc()
-# 
-# 
-# length(unique(tracts_geo$GEOID))
-# length(unique(tracts_summary_2008_2022_sf$GEOID))
-# #unique(conus_counties_events_catalog_2008_2022$)
-# 
-# #hist(states_summary_2008_2022_sf$total_event_days)
-# # hist(counties_summary_2008_2022_sf$total_event_days)
-# # hist(tracts_summary_2008_2022_sf$total_event_days)
-# 
-# fx_viz_agg_15years_plot(cregion_summary_2008_2022_sf, "Climate_Regions")
-# params_suffix <- "Climate_Regions"
-# #fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-# fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-# fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "year_numerical", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-# rm(cregion_summary_2008_2022_sf)
-
-gc()
 
 # Spatial aggregation -----
 tic()
-#ls(states_geo)
+
 admin_geo_label <- "States" ## States ----
 compiled_objects <- fx_combine_yearly_rds(runtime_results_path, 
                                           admin_geo_label,
                                           states_geo,
                                           col_names)
-# 
-ls(compiled_objects[[1]])
-ls(compiled_objects[[2]])
-# glimpse(compiled_objects)
-# glimpse(states_geo[, colnames(states_geo) %in% col_names])
 conus_states_events_catalog_2008_2022_dt <- compiled_objects[[1]]
 
 
 conus_states_events_catalog_2008_2022_sf <- compiled_objects[[2]]
-# compiled_admin_geo_ehe_ece_sf <- conus_states_events_catalog_2008_2022_dt %>% 
-#   #right_join(admin_geo_sf["GEOID"],
-#   right_join(states_geo[, colnames(states_geo) %in% col_names],
-#              .,
-#              by="GEOID") %>% 
-#   drop_na(event_type) %>% st_as_sf()
 
-#ls(compiled_admin_geo_ehe_ece_sf)
-#ls(conus_states_events_catalog_2008_2022_dt)
-#ls(compiled_objects[[1]])
-#include_cols <- names(select_if(conus_states_events_catalog_2008_2022_dt, is.numeric)) # // . ----[histoboxplot]---- . ----
-
-# class(conus_states_events_catalog_2008_2022_sf)
-# length(unique(conus_states_events_catalog_2008_2022_sf$GEOID))
-# glimpse(conus_states_events_catalog_2008_2022_sf)
-#
-# #setDT(conus_states_events_catalog_2008_2022)
-# #class(conus_states_events_catalog_2008_2022)
-#
  states_summary_2008_2022 <- compiled_objects[[3]]
-# glimpse(states_summary_2008_2022)
-#
- states_summary_2008_2022_sf <- compiled_objects[[4]]
-# class(states_summary_2008_2022_sf)
-# glimpse(states_summary_2008_2022_sf)
 
-#plot(states_summary_2008_2022_sf["total_event_days"])
+ states_summary_2008_2022_sf <- compiled_objects[[4]]
+
 fx_toc(conus_states_events_catalog_2008_2022_dt, 1, admin_geo_label, time_period)
 ls(conus_states_events_catalog_2008_2022_dt)
 
 ### Visualization --------
 fx_viz_agg_15years_plot(states_summary_2008_2022_sf, "States")
-#rm(states_summary_2008_2022_sf)
 
 params_suffix <- admin_geo_label
-#fx_histboxplot(conus_states_events_catalog_2008_2022_sf, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_states_events_catalog_2008_2022_dt, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_states_events_catalog_2008_2022_dt, "year_numerical", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
 
 tic()
 admin_geo_label <- "Counties" ## Counties ----
@@ -409,23 +330,10 @@ compiled_objects <- fx_combine_yearly_rds(runtime_results_path,
                                           col_names)
 conus_counties_events_catalog_2008_2022_dt <- compiled_objects[[1]]
 
-
-# class(conus_counties_events_catalog_2008_2022_sf)
-# length(unique(conus_counties_events_catalog_2008_2022_sf$GEOID))
-# glimpse(conus_counties_events_catalog_2008_2022_sf)
-# 
-# #setDT(conus_counties_events_catalog_2008_2022)
-# 
  counties_summary_2008_2022 <- compiled_objects[[3]]
-# glimpse(counties_summary_2008_2022)
-# 
  counties_summary_2008_2022_sf <- compiled_objects[[4]]
-# 
-# #plot(counties_summary_2008_2022_sf["total_event_days"])
 
 fx_toc(conus_counties_events_catalog_2008_2022_dt, 1, admin_geo_label, time_period)
-glimpse(counties_summary_2008_2022_sf)
-
 
 # export gpkg for testing shiny app
 st_write(counties_summary_2008_2022_sf,
@@ -441,17 +349,8 @@ max(data_ehe$total_event_days)
 data_ece <- counties_summary_2008_2022_sf %>% 
   dplyr::filter(event_type == "Extreme Cold Event")
 
-max(data_ece$total_event_days)
-dim(data_ehe)
-dim(data_ece)
-#hist(data_ece$event_type)
-
 params_suffix <- admin_geo_label
 fx_viz_agg_15years_plot(counties_summary_2008_2022_sf, "Counties")
-#rm(counties_summary_2008_2022_sf)
-#fx_histboxplot(conus_counties_events_catalog_2008_2022_dt, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_counties_events_catalog_2008_2022_dt, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_counties_events_catalog_2008_2022_dt, "year_numerical", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
 
 dim(counties_geo)
 dim(counties_summary_2008_2022_sf)
@@ -464,134 +363,17 @@ compiled_objects <- fx_combine_yearly_rds(runtime_results_path,
                                           col_names)
 
 conus_tracts_events_catalog_2008_2022_dt <- compiled_objects[[1]]
+ 
+tracts_summary_2008_2022 <- compiled_objects[[3]]
+ 
+tracts_summary_2008_2022_sf <- compiled_objects[[4]]
 
-# class(conus_tracts_events_catalog_2008_2022_sf)
-# length(unique(conus_tracts_events_catalog_2008_2022_sf$GEOID))
-# glimpse(conus_tracts_events_catalog_2008_2022_sf)
-# 
-# #setDT(conus_tracts_events_catalog_2008_2022)
-# 
- tracts_summary_2008_2022 <- compiled_objects[[3]]
-# glimpse(tracts_summary_2008_2022)
-# 
- tracts_summary_2008_2022_sf <- compiled_objects[[4]]
-# class(tracts_summary_2008_2022_sf)
-# glimpse(tracts_summary_2008_2022_sf)
-#plot(counties_summary_2008_2022_sf["total_event_days"])
 fx_toc(conus_tracts_events_catalog_2008_2022_dt, 1, admin_geo_label, time_period)
 
 ls(tracts_geo)
 fx_viz_agg_15years_plot(tracts_summary_2008_2022_sf, "Tracts")
 params_suffix <- "Tracts"
-#fx_histboxplot(conus_tracts_events_catalog_2008_2022_dt, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_tracts_events_catalog_2008_2022_dt, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_tracts_events_catalog_2008_2022_dt, "year_numerical", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-#rm(tracts_summary_2008_2022_sf)
 
 tic()
-admin_geo_label <- "ZCTAs" ## ZCTAs ----
-compiled_objects <- fx_combine_yearly_rds(runtime_results_path, 
-                                          admin_geo_label, 
-                                          zctas_geo,
-                                          col_names)
-
-conus_zctas_events_catalog_2008_2022_dt <- compiled_objects[[1]]
-
-zctas_summary_2008_2022 <- compiled_objects[[3]]
-
-zctas_summary_2008_2022_sf <- compiled_objects[[4]]
-# class(tracts_summary_2008_2022_sf)
-# glimpse(zctas_summary_2008_2022_sf)
-#plot(counties_summary_2008_2022_sf["total_event_days"])
-fx_toc(conus_zctas_events_catalog_2008_2022_dt, 1, admin_geo_label, time_period)
-
 
 gc()
-
-#plot(conus_states_events_catalog_2008_2022[1])
-
-#dim(states_geo)
-#dim(states_summary_2008_2022_sf)
-
-# length(unique(states_geo$GEOID))
-# length(unique(states_summary_2008_2022_sf$GEOID))
-
-length(unique(counties_geo$GEOID))
-length(unique(counties_summary_2008_2022_sf$GEOID))
-
-length(unique(tracts_geo$GEOID))
-length(unique(tracts_summary_2008_2022_sf$GEOID))
-#unique(conus_counties_events_catalog_2008_2022$)
-
-#hist(states_summary_2008_2022_sf$total_event_days)
-# hist(counties_summary_2008_2022_sf$total_event_days)
-# hist(tracts_summary_2008_2022_sf$total_event_days)
-
-fx_viz_agg_15years_plot(zctas_summary_2008_2022_sf, "ZCTAs")
-params_suffix <- "ZCTAs"
-#fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-##fx_histboxplot(conus_zctas_events_catalog_2008_2022_dt, "year_numerical", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-rm(zctas_summary_2008_2022_sf)
-gc()
-# 
-# fx_reportFieldsPar(
-#   conus_states_events_catalog_2008_2022_dt,
-#   conus_counties_events_catalog_2008_2022_dt,
-#   conus_tracts_events_catalog_2008_2022_dt,
-#   conus_zctas_events_catalog_2008_2022_dt,
-# #  conus_urban_events_catalog_2008_2022_dt,
-#   
-#   prefix = time_period,
-#   suffix = paste0("from_", cellsize),
-#   output_path = distplot_outputs_path)
-
-
-params_suffix <- paste0("US65", "from_", cellsize)
-
-col_list <- c("avg_intensity", 
-              "median_intensity",
-              "max_intensity",
-              "min_intensity")
-
-vfx_histocomparison_scales(conus_counties_events_catalog_2008_2022_dt,
-                    conus_states_events_catalog_2008_2022_dt,
-                    sc1_label = "counties",
-                    sc2_label = "states",
-                    col_list,
-                    geo_output_path,
-                    params_suffix)
-
-vfx_histocomparison_scales(conus_counties_events_catalog_2008_2022_dt,
-                           conus_tracts_events_catalog_2008_2022_dt,
-                           sc1_label = "counties",
-                           sc2_label = "tracts",
-                           col_list,
-                           geo_output_path,
-                           params_suffix)
-
-vfx_histocomparison_scales(conus_tracts_events_catalog_2008_2022_dt,
-                           conus_tracts_events_catalog_2008_2022_dt,
-                           sc1_label = "tracts",
-                           sc2_label = "tracts",
-                           col_list,
-                           geo_output_path,
-                           params_suffix)
-
-# vfx_histocomparison_scales(conus_states_events_catalog_2008_2022_dt,
-#                            conus_states_events_catalog_2008_2022_dt,
-#                            sc1_label = "states",
-#                            sc2_label = "states",
-#                            col_list,
-#                            geo_output_path,
-#                            params_suffix)
-# 
-# vfx_histocomparison_scales(conus_counties_events_catalog_2008_2022_dt,
-#                            conus_counties_events_catalog_2008_2022_dt,
-#                            sc1_label = "counties",
-#                            sc2_label = "counties",
-#                            col_list,
-#                            geo_output_path,
-#                            params_suffix)
-
-log_info(paste0("Data processing completed!"))

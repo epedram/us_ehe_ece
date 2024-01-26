@@ -14,7 +14,7 @@ library(logger)
 sf_use_s2(F)
 
 job_id <- ""
-project_title <- "01_web_raw_hourly_data_O2_TEST"
+project_title <- "01_web_raw_hourly_data"
 
 geography <- paste("us", 49L,
                    sep = "_")
@@ -35,10 +35,6 @@ time_period <- paste(start_year, end_year, sep = "_")
 
 spatial_projection <-  3857 # #epsg 3857 that is commonly used for web mapping
 spatial_projection_lonlat <- 4269 # CRS that is used to transform lon-lat data (based on NAD 83)
-#5070 #Albers Equal Area Projection (EPSG code 9822).
-#32610 #EPSG:32610 WGS 84 / UTM zone 10N
-#4326 #WGS83 used for GPS
-#https://bookdown.org/mcwimberly/gdswr-book/coordinate-reference-systems.html
 
 default_crs = sf::st_crs(spatial_projection_lonlat)
 sf_use_s2(FALSE)
@@ -65,7 +61,6 @@ us_noaa_isd_stations <- readRDS(file.path(source_dir,
 unique(us_noaa_isd_stations$YYYY)
 
 length(unique(us_noaa_isd_stations$station_id))
-#2774
 
 ### * 1 ----
 station_list <- unique(us_noaa_isd_stations$station_id)#[1408:1412] #sample
@@ -92,7 +87,7 @@ cl <- makeCluster(cores, outfile = file.path(runtime_path, paste0("foreach_logs_
 # register the cluster
 registerDoParallel(cl)
 
-foreach(#daily_data = daily_data_segments,
+foreach(
   year_i = seq(start_year, end_year),
   .multicombine = TRUE,
   .verbose = TRUE,
@@ -100,16 +95,13 @@ foreach(#daily_data = daily_data_segments,
                "tictoc", "logger")
 ) %dopar% {
   print(Sys.time())
-#for (year_i in seq(start_year, end_year)) {
-  #year_i <- 2018
 
   library(here)
   library(dplyr)
   library(purrr)
   library(data.table)
   library(logger)
-  #log_threshold(ERROR)
-  #my_logger <- logger(ERROR)
+
 
   #Define variables for missing stations list
   erroneous_stations_list <- "Station_id"
@@ -136,7 +128,7 @@ foreach(#daily_data = daily_data_segments,
   yearly_path_csv <- file.path(output_path, paste0(year_i, "_processed_csv_files"))
 
   # loop through the stations list #[1408:1412]
-  #for (each_station in station_list) {
+  
   download_hourly_tables <-  function(i) {
   ## create a folder storing the log files
   logger_file <- file.path(meta_output_path, paste0("logger_outputs_",
@@ -217,11 +209,8 @@ foreach(#daily_data = daily_data_segments,
     
       gc()
       
-      #log_success(each_station)
        }
 
-    # Set up future map vector
-    #plan(multisession, workers = cores)
     
     runtime_collector <- map(1:length(station_list),  
                                     download_hourly_tables)
@@ -269,32 +258,5 @@ print(showConnections())
 print("Closing")
 print(stopCluster(cl))
 
-
-# isd_compiled_files <- list.files(output_path, pattern = "*compiled*")
-# isd_compiled_table <- map(isd_compiled_files, ~read_csv(file=file.path(output_path,.), skip = 1)) %>% bind_rows()
-# 
-# write.csv(isd_compiled_table,
-#           file.path(reports_path,
-#                     paste0("all_compiled_tables_",
-#                            time_period,
-#                            ".csv")),
-#           row.names = T)
-# 
-# 
-# isd_missing_files <- list.files(output_path, pattern = "*missing*")
-# isd_missing_table <- map(isd_missing_files, ~read_csv(file=file.path(output_path,.), skip = 1)) %>% bind_rows()
-# 
-# write.csv(isd_missing_table,
-#           file.path(tables_output_path,
-#                     paste0("all_missing_tables_",
-#                            time_period,
-#                            ".csv")),
-#           row.names = T)
-# 
-# saveRDS(isd_compiled_table,
-#         file.path(reports_path,
-#                   paste0("isd_compiled_table", "_",
-#                          time_period,
-#                          ".rds")))
 
 log_success("End of script")

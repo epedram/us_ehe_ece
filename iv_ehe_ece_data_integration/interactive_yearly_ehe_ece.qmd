@@ -1,5 +1,5 @@
 ---
-title: "US EHE/ECE Data Integration"
+title: "US EHE/ECE Data Integration and Visualization"
 author: "Pedram Fard"
 format: html
 editor: visual
@@ -10,6 +10,7 @@ library(readr)
 library(viridis)
 library(tidyverse)
 library(sf)
+library(leaflet)
 ```
 
 ## Loading the base spatial data set including Counties and States boundaries
@@ -49,31 +50,37 @@ state_boundaris_ehe_catalog <- merge(states_geo,
           by.y="GEOID",
           all.x = TRUE,
           all.y = TRUE,
-          suffix = c("","_sp")) %>% st_as_sf() 
+          suffix = c("","_sp")) %>% st_as_sf()  %>% st_transform(crs = 4326)
 
 glimpse(state_boundaris_ehe_catalog)
 ```
 
-## Mapping the summarized EHE data merged with the States boundaries 
+## Interactive mapping the summarized EHE data merged with the States boundaries
 
 ```{r}
-total_ehe_plot <- ggplot() +
-    geom_sf(data = state_boundaris_ehe_catalog,
-            aes(fill = total_event_days),
-            lwd = .1) + 
-    scale_fill_viridis(option="inferno", 
-                       direction = -1,
-                       na.value = NA) +
+# define the color palette
+pal <- colorNumeric(palette = magma(256, direction = -1), domain = state_boundaris_ehe_catalog$total_event_days)
 
-    labs(fill = "Total Number of EHE Days (2008-2022)") +
+total_ehe_interactive_plot <- leaflet(state_boundaris_ehe_catalog) %>%
+  addProviderTiles(providers$OpenStreetMap) %>% 
+  addPolygons(fillColor = ~pal(total_event_days),
+              weight = 1,
+      opacity = 1,
+      color = "#888",
+      dashArray = "3",
+      fillOpacity = 0.7,
+      highlightOptions = highlightOptions(
+        weight = 3,
+        color = "#555",
+        dashArray = "",
+        fillOpacity = 0.8,
+        bringToFront = TRUE),
+      label = ~as.character(total_event_days)) %>% 
+  addControl(
+    html = "<strong>Total Number of EHE Days (2008-2022)</strong>",
+    position = "bottomleft",
+    className = "map-title"
+)
 
-    theme_void() + 
-    theme(legend.position = "bottom")
-
-ggsave("./data/Total_Number_of_EHE_Days_2008_2022.jpg",
-         plot = total_ehe_plot, dpi = 300,
-         width = 22, height = 18, units = "cm")
-
-total_ehe_plot
+total_ehe_interactive_plot
 ```
-

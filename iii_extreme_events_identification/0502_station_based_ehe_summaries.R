@@ -14,7 +14,7 @@ selected_variables <- c(
   "EHMI"
   )
 
-##```{r}
+
 CA_EHE_Summary <- ehe_ece %>%
 
   st_drop_geometry() %>%
@@ -34,8 +34,6 @@ CA_EHE_Summary <- ehe_ece %>%
              max = ~round(max(as.double(.), na.rm = T), 1),
              median = ~median(as.double(.), na.rm = T),
              sd = ~round(sd(as.double(.), na.rm = T), 1),
-             #se = ~round((sd(as.double(.), na.rm = T)/sqrt(n(.))), 1),
-             #se2 = ~round(sd/events_records, 1),
              Q1 = ~round(quantile(., probs = .25, na.rm = TRUE), 1),
              Q3 = ~round(quantile(., probs = .75, na.rm = TRUE), 1)
            )
@@ -46,12 +44,7 @@ CA_EHE_Summary <- ehe_ece %>%
          EHE_duration_SE = round((EHE_duration_sd / sqrt(events_records)), 2),
          temperature_avg_SE = round((temperature_avg_sd / sqrt(events_records)), 2),
          DM_AT_SE = round((DM_AT_sd / sqrt(events_records)), 2)
-         #temperature_avg_SE = round((temperature_avg_sd / events_records), 1),
          )
-
-# fx_saveCSV(CA_EHE_Summary, output_path,
-#            prefix = "00_Aggregate_stats",
-#            suffix = year)
 
 CA_EHE_Summary_rotated <- rotate_df(CA_EHE_Summary)
 
@@ -66,7 +59,6 @@ CA_EHE_Summary_2 <- ehe_ece %>%
     group_by(station_id) %>%
 
   summarise(
-    #unique_stations_x_days_combined = n(),
     n_distinct_days_n = n_distinct(DATE, na.rm = TRUE),
     cumulative_impacted_censusgeo_n = n_distinct(station_id, na.rm = TRUE),
     avg_impacted_censusgeo_perday = round(mean(cumulative_impacted_censusgeo_n/n_distinct_days_n,
@@ -175,9 +167,6 @@ ggsave(plot_file_name2,
        plot = multipanel_boxplots + geom_jitter(),
        dpi = 300,
        width = 22, height = 18, units = "cm")
-
-
-###
 
 
 fx_appendCSV(CA_EHE_Summary,

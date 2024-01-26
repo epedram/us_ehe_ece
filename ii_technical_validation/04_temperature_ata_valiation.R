@@ -49,7 +49,6 @@ runtime_params <- paste0("(", sampling_ratio, "_",
                          100 - sampling_ratio, ")")
 
 cores <- as.integer(opt$cores)
-#cores <- 3 # // [runtime settings] O2 / Cores ==== 
 
 pointer <- "archiveX"
 
@@ -65,11 +64,11 @@ source(here::here("runtime_setup",
 print(Sys.time())
 
 # Computational script ----
-
+# define the data completeness code
 j <- 65
 fx_io()
 
-  threshold_label <- as.character(j) #(100-((7-i)*5))
+  threshold_label <- as.character(j) 
   print(threshold_label)
 
   ### I/O -----
@@ -82,16 +81,11 @@ fx_io()
   mutate(temperature_avg = round((tmin + tmax) / 2, 1)) %>% 
   mutate(YYYY_MM_DD = as.Date(format(day), "%Y-%m-%d")) %>% 
   dplyr::select(any_of(c("station_id", "YYYY_MM_DD", "temperature_avg"))) %>% 
-  #dplyr::filter(!is.na(temperature_avg)) %>% 
-  #mutate_if(is.double, ~ round(., 1))# %>% 
   filter(YYYY_MM_DD >= start_date &
         YYYY_MM_DD <= end_date)
   
-  #glimpse(gridmet_at_noaa_isd_stations)
   fx_toc(gridmet_at_noaa_isd_stations, 1, time_period, j)
-  st_crs(gridmet_at_noaa_isd_stations)$epsg
-  st_crs(gridmet_at_noaa_isd_stations)$input
-    
+
   stations_geo_path <- file.path(source_dir,
                                  "00_noaa_stations_data_catalog_2007_2022",
                                  "us49_stations_2007_2022.rds")
@@ -118,10 +112,6 @@ fx_io()
                   contains("station_id") | 
                   contains("Climate_Region"))
 
-  #plot(states_geo["Climate_Region"])
-  #glimpse(stations_geo)
-  #glimpse(us_noaa_isd_stations)
-
  columns_to_keep <- c("Climate_Region", 
                       "temperature_avg", 
                       "YYYY", "YYYY_MM_DD", 
@@ -134,10 +124,7 @@ fx_io()
                                                             threshold_label,
                                                             "complete.rds")))[[1]] %>%  
  filter(YYYY_MM_DD >= start_date &
-        YYYY_MM_DD <= end_date) #%>%  #// *3 [settings] O2 / Size ====
-        #sample_frac(0.022) # //----
- 
- #glimpse(stations_daily_ts_compiled)
+        YYYY_MM_DD <= end_date) 
  
  length(unique(stations_daily_ts_compiled$station_id)) # number of distinct stations
  length(unique(stations_daily_ts_compiled$YYYY_MM_DD)) / 15 # number of days
@@ -161,11 +148,6 @@ fx_io()
  fx_toc(stations_daily_ts_compiled_sf, 1, time_period, j)
  
 
- # class(stations_daily_ts_compiled)
- # class(stations_geo)
- # glimpse(stations_daily_ts_compiled_sf)
- ls(stations_daily_ts_compiled_sf)
- 
   # find the total combination of time/geography/stations for the sampling
  stations_daily_ts_compiled_lite <- stations_daily_ts_compiled_sf %>% st_drop_geometry() %>%
    dplyr::select(any_of(columns_to_keep)) %>% 
@@ -220,9 +202,7 @@ foreach(i = seq(1:cores),
                       "1_helper_functions.R"), local = T)
     source(here::here("runtime_setup",
                       "1_helper_functions_geo.R"), local = T)
-    
-  #for(i in 1:1){ # // *5 [settings] O2 / For loop ====
-    
+
     # Logger set up ----
     logger_file <- file.path(runtime_path, paste0(time_period,
                                                       "_logger_outputs_for_sample_",
@@ -245,8 +225,6 @@ foreach(i = seq(1:cores),
             
  tic()
  sampling_pool <- stations_daily_ts_compiled_lite %>%
-   #dplyr::select(all_of(c("Climate_Region", "YYYY", "station_id"))) %>% ##
-   #mutate(station_year = paste(station_id, YYYY, sep = "_"))##
    group_by(YYYY, Climate_Region) %>% 
               select(-c("YYYY_MM_DD", "temperature_avg")) 
  fx_toc(sampling_pool, 1, time_period, i)
@@ -264,9 +242,6 @@ foreach(i = seq(1:cores),
  sampled_stations <- sampling_pool %>%  # Group by year and state
    sample_frac(sampling_ratio / 100) # Sampling ----
  fx_toc(sampled_stations, 1, time_period, i)
-   
-   #glimpse(sampled_stations)
-   #length(unique(sampled_stations$station_year))
    
   write.csv(sampled_stations,
               paste0(tables_output_path, "/",
@@ -328,10 +303,7 @@ foreach(i = seq(1:cores),
       dplyr::filter(YYYY_MM_DD == selected_day) %>% 
       dplyr::filter(!is.na(temperature_avg)) %>% 
       as_Spatial(., cast = TRUE)
-        
-      #length(unique(stations_daily_ts_compiled_train80_tmp$station_id))
-      #length(unique(stations_daily_ts_compiled_test20_tmp$station_id))
-      
+
       ### IDW ----
       interpolated_idw_SP <- gstat::idw(as.formula("temperature_avg ~ 1"),
                                       stations_daily_ts_compiled_train80_tmp,
@@ -371,9 +343,7 @@ foreach(i = seq(1:cores),
       mutate(delta_idw = temperature_avg - temperature_avg_62_idw,
              delta_nn = temperature_avg - temperature_avg_nn_idw,
              delta_gridmet= temperature_avg - temperature_avg_gridmet) 
-    #
-    #glimpse(stations_daily_delta_computed)
-    
+
       return(stations_daily_delta_computed)
     }) 
     log_trace(paste0("(Sample ", i, ") Computing daily deltas completed"))
@@ -389,8 +359,7 @@ foreach(i = seq(1:cores),
             suffix = c("","_sp"))
     
     fx_toc(validation_compiled_test20_delta, 1, time_period, i)
-    #glimpse(validation_compiled_test20_delta)
-    
+
     tic()
     validation_compiled_train80_delta <- stations_daily_ts_compiled_train80 %>% 
     merge(.,

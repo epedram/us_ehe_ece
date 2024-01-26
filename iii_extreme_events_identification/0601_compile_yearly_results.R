@@ -47,7 +47,6 @@ st_write(ehe_ece_boundaries,
                           "_ehe_ece_vector_boundaries_",
                           cellsize,
                           ".gpkg")),
-         #                           ".geojson")),
          delete_layer = TRUE)
 
 
@@ -77,7 +76,6 @@ st_write(impacted_areas_vars_intensity,
                           "_impacted_area_variables_intensity_",
                           cellsize,
                           ".gpkg")),
-         #                           ".geojson")),
          delete_layer = TRUE)
 
 log_debug("yearly VECTOR data processing completed")
@@ -91,14 +89,6 @@ fx_reportFieldsPar(
   suffix = "vector",
   output_path = yearly_dataset_path)
 
-# unique(impacted_geo_boundaries$idw_variable)
-# unique(impacted_geo_boundaries$geographic_scale)
-# glimpse(impacted_geo_boundaries)
-# 
-# unique(impacted_areas_vars_intensity$idw_variable)
-# unique(impacted_areas_vars_intensity$geographic_scale)
-# glimpse(impacted_areas_vars_intensity)
-
 rm(ehe_ece_boundaries)
 rm(impacted_geo_boundaries)
 rm(impacted_areas_vars_intensity)
@@ -107,8 +97,7 @@ dir.create(file.path(reports_path , paste0("viz_summary_plots_", start_year)))
 plots_output_path <- file.path(reports_path, paste0("viz_summary_plots_", start_year))
 
 tic()  ## ** combining yearly ehmi/ecmi idw rasters  ----
-#list.files(daily_idw_rasters_outputs)
-#XYZ
+
 idw_grids <- fx_combine_rasters(daily_idw_rasters_outputs,  
                                 paste0("idw_ehce_grid_", start_year),
                                 yearly_dataset_path,
@@ -184,20 +173,6 @@ log_success("yearly RASTER data processing completed")
 params_suffix <- time_period
 fx_histboxplot(selected_period_geo_events_only, "month_name", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
 fx_histboxplot(selected_period_geo_events_only, "Climate_Region", plots_output_path, params_suffix) # // . ----[histoboxplot]---- . ----
-
-# idw_grid <-  idw_grids[[2]]
-# fx_reportRasterMetadata(
-#   idw_grid,
-#   #idw_grids[[2]],
-#    ece_unified_grids[[2]],
-#   # ehe_unified_grids[[2]],
-#   # ehce_unified_grids[[2]],
-# 
-#   prefix = time_period,
-#   suffix = "yearly",
-#   output_path = yearly_dataset_path,
-#   time_period,
-#   model_params)
 
 rm(idw_grids)
 rm(ehe_unified_grids)
