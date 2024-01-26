@@ -1,14 +1,13 @@
-# Latest update Aug 2023
-
-# ---- # Define specific folders for input, interim and output (IO)
+# Latest update Jan 2024
 
 # I/O -----
-source_dir <- "/n/groups/patel/pedram/us_climate_data"
+# ---- # Define directories for input, interim and output data
+source_dir <- "~/us_climate_data"
 
-#scratch_dir <- "/n/scratch3/users/p/pef004/us_climate_data"
-scratch_dir <- "/n/scratch/users/p/pef004/us_climate_data_s"
+scratch_dir <- "~/scratch"
 
-archive_dir <- "/n/groups/patel/pedram/us_climate_data"
+archive_dir <- "~/archive"
+
 
 st_label <- paste(geography, time_period, sep = "_")
 l1_label <- paste(project_title, task_title, sep = "_")
