@@ -1,0 +1,166 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Exploring the GridEX dataset"
+author: "Pedram Fard"
+
+format: html
+editor: visual
+---
+
+## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+
+April 2024, PAA Annual Meeting
+
+### Session 2A - Exploring the GridEX dataset
+
+Author: Pedram Fard, Researcher at Harvard Medical School\
+email: pedram_fard\@hms.harvard.edu
+
+This session will guide you through working with GridEX. This dataset offers a detailed catalog of extreme heat and cold events, at a high spatio-temporal resolution across the United States,
+
+For this workshop we use a pre-configured RStudio environment hosted on Posit Cloud. This environment is basically a pre-installed set of libraries that help us to work with RStudio right from the browser.
+
+This allows us to jump right into analyzing representative samples of GridEX layers without the need to download the entire dataset or setting up libraries.
+
+Prefer to set up your own environment? The Setup folder contains a notebook listing all the required software and libraries.
+
+### Exploring curated NOAA sensors data
+
+Here's a list of R packages we'll need for exploring spatial data in this session. These are already pre-installed on our Posit Cloud instances, so all we need to do is load them using the first code chunk.
+
+```{r}
+## install.packages(c("sf", "tidyverse"))
+
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+
+# Check out the content of data folders for today's workshop
+list.files(workshop_dataset, full.names = TRUE)
+```
+
+### GridEX data layers naming convention
+
+GridEX dataset provides a catalog of extreme heat and cold events in multiple spatial and temporal scales and different data models.
+
+To simplify data identification and organization, we've implemented a specific naming convention. This convention uses a three-digit code prefixed with "S" to denote the spatial scale, followed by another three-digit code prefixed with "T" to indicate the temporal scale.
+
+For a detailed breakdown of file names and their corresponding spatial and temporal scales, you can refer to the naming convention guide in this Google Sheet:
+
+[GridEX Naming Convention](https://docs.google.com/spreadsheets/d/1N73SnxaKX-0x1m5EM5WhXkWj1NASqk1QTfkjfmxofRw "GridEX Naming Convention")
+
+### Explore the catalog of sensors from the NOAA's Integrated Surface Dataset (NOAA ISD):
+
+https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00532
+
+```{r}
+data_dir <- "../Data/NOAA_sensors_dataset"
+#list.files(data_dir, full.names = TRUE)
+
+noaa_stations <- st_read(file.path(data_dir, "NOAA_C16_S900_noaa_stations_geo_CRS4269.gpkg"))
+
+dim(noaa_stations)
+#View(noaa_stations)
+
+```
+
+### Mapping the spatial coverage of NOAA sensors used in GridEX data pipeline
+
+```{r}
+ls(noaa_stations)
+
+# Number of unique stations with valid data records over the past 16 years
+num_stations <- dim(noaa_stations)[1]
+num_stations
+
+plot(noaa_stations["elev_m"],
+    main = "Spatial distribution of NOAA ISD sensors") # adds the main title
+
+# Add a subtitle below the main title
+mtext(paste(num_stations, "stations"), side = 3, line = 1, adj = 0)
+
+#hist(noaa_stations$elev_m)
+```
+
+### Retrieve the imputed historical sensor (station) level weather data
+
+Read and inspect the station-based weather data for 16 years, stored in RDS format
+
+```{r}
+noaa_daily_imputed_ca <- readRDS(file.path(data_dir, "C16_S900_T001_noaa_daily_imputed_sf_CA_CRS5070.rds"))
+
+class(noaa_daily_imputed_ca)
+glimpse(noaa_daily_imputed_ca)
+```
+
+```{r}
+number_of_stations_in_california <- length(unique(noaa_daily_imputed_ca$station_id))
+number_of_stations_in_california
+
+dim(noaa_daily_imputed_ca)
+
+number_of_days <- length(unique(noaa_daily_imputed_ca$YYYY_MM_DD))
+number_of_days
+#number_of_days / 16
+```
+
+## Correlation of the derived “Daily Mean Apparent Temperature” and the “Daily Mean Temperature”
+
+```{r}
+noaa_daily_imputed_ca_df <- noaa_daily_imputed_ca %>% st_drop_geometry() %>% 
+  filter(year_numerical == 2022)
+
+#dim(noaa_daily_imputed_ca_df)
+
+ggplot(noaa_daily_imputed_ca_df, aes(x = temperature_avg,
+                                  y = apparent_temperature)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "loess", se = FALSE, color = "darkgreen") +
+  labs(title = "Correlation between the derived “Daily Mean Apparent Temperature” and the “Daily Mean Temperature",
+       subtitle = "NOAA Stations in California (2022)",
+       x = "Daily Average Temperature",
+       y = "Daily Average Apparent Temperature") +
+  theme_minimal()
+```
+
+### Read the station-based extreme events data stored in GeoPackage format
+
+```{r}
+daily_events_ca <- st_read(file.path(data_dir, "C15_S900_T002_noaa_ehe_ece_days_sf_CA_CRS5070.gpkg"))
+
+#glimpse(daily_events_ca)
+
+daily_ece_ca <- daily_events_ca %>% filter(Event_Type == "Extreme Cold Event") %>% st_drop_geometry() %>% filter(year_number == 2020)
+
+daily_ehe_ca <- daily_events_ca %>% filter(Event_Type == "Extreme Heat Event") %>% st_drop_geometry() %>% filter(year_number == 2020)
+```
+
+### Visualize the correlation of the derived “Excess Heat and Cold Factors” and the “Daily Mean Temperature”
+
+Method adapted from the Excess Heat Factor: A Metric for Heatwave Intensity and Its Use in Classifying Heatwave Severity https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4306859/
+
+```{r}
+ggplot(daily_ehe_ca, aes(x = temperature_max,
+                                  y =  EHF)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "loess", se = FALSE, color = "red") +
+  labs(title = "Correlation between the “Excess Heat Factor” and “Daily Mean Temperature",
+       subtitle = "NOAA Stations in California (2020)",
+       x = "Daily Average Temperature",
+       y = "Excess Heat Factor (EHF)") +
+  theme_minimal()
+```
+
+```{r}
+ls(daily_ece_ca)
+ggplot(daily_ece_ca, aes(x = temperature_min,
+                                  y = ECF)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Correlation between the “Excess Cold Factor” and “Daily Mean Temperature",
+       subtitle = "NOAA Stations in California (2020)",
+       x = "Daily Average Temperature",
+       y = "Excess Cold Factor (ECF)") +
+  theme_minimal()
+```

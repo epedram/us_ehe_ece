@@ -1,0 +1,47 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Connecting GridEX with ACS data"
+author: "Risto Conte Keivabu"
+
+format: html
+editor: visual
+---
+
+## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+
+April 2024, PAA Annual Meeting
+
+### Session 3A - Connecting GridEX with ACS data
+
+Author: Risto Conte Keivabu, Max Planck Institute for Demographic Research (Rostock)\
+email: contekeivabu\@demogr.mpg.de
+
+Install Packages
+
+```{r}
+#clear environment
+rm(list=ls(all=TRUE))
+
+#install.packages("sf") # main package to work with spatial vector data in R 
+#install.packages("tidyverse") # suit of packages to handle and visualize data 
+#install.packages("mapview") # provides easy way to create interactive maps 
+#install.packages("tigris") # provides a large range of geographical data for the US(e.g:census tracts, counties, roads)
+#install.packages("terra") # spatial data analysis with vector and raster data
+#install.packages("crsuggest") # allows to find the most suitable CRS for a certain location
+#install.packages("tidycensus") #download census and ACS data
+```
+
+Once we have installed the packages we have to load them:
+
+```{r}
+# Library
+library(sf)
+library(tidyverse)
+library(mapview)
+library(terra)
+library(ggplot2)
+library(tigris)
+library(crsuggest)
+library(tidycensus)
+library(exactextractr)
+```

@@ -1,0 +1,114 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Connecting GridEX with PLACES health dataset"
+author: "Vy Kim Nguyen"
+
+format: html
+editor: visual
+---
+
+## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+
+April 2024, PAA Annual Meeting
+
+### Session 3B - Exploring the extreme events intensity and grid surfaces
+
+Author: Vy Nguyen, Researcher at Harvard Medical School\
+email: Vy_Nguyen\@hms.harvard.edu
+
+PLACES provides estimates of health measures for counties, cities, neighborhoods, and ZIP code areas across the United States. These estimates currently cover 36 different chronic diseases.
+
+<https://www.cdc.gov/places/about/index.html>
+
+```{r}
+library(sf)
+library(dplyr)
+library(data.table)
+
+# workshop_dataset <- "../Data"
+
+places_data_dir <- "../Data/PLACES_Dataset"
+list.files(places_data_dir)
+```
+
+### Load the PLACES data
+
+```{r}
+places_county_2023 <- fread(file.path(places_data_dir, "PLACES__County_Data__GIS_Friendly_Format___2023_release.csv"))
+
+class(places_county_2023)
+dim(places_county_2023)
+View(places_county_2023)
+```
+
+### Load and subset the extreme heat events frequency
+
+```{r}
+events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries","S190_Counties_events_by_type_by_year_2008_2022.rds"))[[1]] 
+
+ehe_counties_ca_2022 <- events_frequency_counties %>% 
+  dplyr::filter(event_type == "Extreme Heat Event") %>% 
+  dplyr::filter(year_numerical == 2022)
+
+class(ehe_counties_ca_2022)
+dim(ehe_counties_ca_2022)
+View(ehe_counties_ca_2022)
+```
+
+### Subset the PLACES data for state of california
+
+```{r}
+places_county_2023_ca <- places_county_2023 %>% 
+  dplyr::filter(StateAbbr == "CA") %>% 
+  mutate(CountyFIPS = paste0("0", as.character(CountyFIPS))) # adjust the GEOID code
+View(places_county_2023_ca)
+```
+
+### Join the two dataset
+
+```{r}
+places_county_2023_ca_augmented <- places_county_2023_ca %>% 
+  merge(.,
+          ehe_counties_ca_2022,
+          by.x = "CountyFIPS",
+          by.y = "GEOID")
+  
+View(places_county_2023_ca_augmented)
+```
+
+### Explore the potential correlation
+
+```{r}
+library(tidyverse)
+
+health_outcomes_codenames <- colnames(places_county_2023_ca) %>%
+  .[grepl("_CrudePrev$|_AdjPrev", .)== TRUE]
+
+correlation_ehe_health <- function(x
+                                   , df_merged)
+{
+  print(x)
+  
+  health_outcome_i <- df_merged %>%
+    pull(x)
+  
+  num_days_ehe <- df_merged %>%
+    pull(total_event_days)
+  
+  correlation_i <- cor(health_outcome_i
+                       , num_days_ehe)
+
+  df_stats_i <- data.frame(health_outcome = x
+                           , event_type = "Extreme Heat Event"
+                           , correlation = correlation_i)
+  return(df_stats_i)
+}
+
+df_correlations <- health_outcomes_codenames %>%
+  map(.
+      , correlation_ehe_health
+      , places_county_2023_ca_augmented) %>%
+  bind_rows()
+View(df_correlations)
+# cor(places_county_2023_ca_augmented$total_event_days, places_county_2023_ca_augmented$CASTHMA_AdjPrev)
+```
