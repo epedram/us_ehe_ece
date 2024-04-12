@@ -20,7 +20,7 @@ Install Packages
 
 ```{r}
 #clear environment
-rm(list=ls(all=TRUE))
+#rm(list=ls(all=TRUE))
 
 #install.packages("sf") # main package to work with spatial vector data in R 
 #install.packages("tidyverse") # suit of packages to handle and visualize data 
@@ -45,3 +45,313 @@ library(crsuggest)
 library(tidycensus)
 library(exactextractr)
 ```
+
+```         
+```
+
+## Tigris, some basic commands:
+
+Upload data on US states using the Tigris package. For more information on the package you can check the following links: <https://cran.r-project.org/web/packages/tigris/index.html> or <https://journal.r-project.org/archive/2016-2/walker.pdf.>
+
+```{r, results='hide'}
+
+(
+states_geo <- states()
+)
+```
+
+We can map the values:
+
+```{r}
+mapview(states_geo, zcol = "NAME", legend = FALSE)
+```
+
+## Tidycensus, some basic commands:
+
+### Check the data available for ACS and the relevant codes
+
+```{r}
+acs5_2021_vars <- load_variables(2021, "acs5", cache = TRUE)
+acs5_2021_vars
+income_vars <- acs5_2021_vars %>%
+  filter(grepl("Median household income", concept, ignore.case = TRUE))  
+
+# View income-related variables
+income_vars
+```
+
+### Download data on income at the census tract level for Ohio
+
+We can visualize the data as follows:
+
+```{r, results='hide', message=T, warning=FALSE, error=FALSE}
+
+median_income_oh = get_acs(geography = "tract", 
+          variables = "B19013_001", 
+          year = 2021, 
+          survey = "acs5", 
+          state = "OH",
+          geometry = TRUE)
+  
+```
+
+Visualize it:
+
+```{r}
+head(median_income_oh) 
+mapview(median_income_oh, zcol = "estimate", legend = TRUE)
+```
+
+What about downloading data for all states?
+
+```{r,eval=FALSE, results='hide', message=FALSE, warning=FALSE, error=FALSE}
+# census_api_key("", install = TRUE)
+
+get_state_income <- function(state) {
+  cat("Fetching data for:", state, "\n")  # Print progress
+  
+  get_acs(geography = "tract", 
+          variables = "B19013_001", 
+          year = 2021, 
+          survey = "acs5", 
+          geometry = TRUE,
+          state = state)
+}
+states <- state.abb
+
+# Use purrr's map_df to loop through each state and bind results together
+usa_income <- purrr::map_df(states, get_state_income)
+```
+
+### Check the data available for the decennial Census
+
+Based on the tidycensus package: "For the decennial Census, possible dataset choices include "pl" for the redistricting files; "dhc" for the Demographic and Housing Characteristics file and "dp" for the Demographic Profile (2020 only), and "sf1" or "sf2" (2000 and 2010) and "sf3" or "sf4" (2000 only) for the various summary files. Special island area summary files are available with "as", "mp", "gu", or "vi"."
+
+For population figures, we can check the dataset called "pl".
+
+```{r}
+variables_2020 <- load_variables(year = 2020, dataset = "pl", cache = TRUE)
+head(variables_2020)
+```
+
+From the decennial census we can extract the percentage of Black NH in each census tract based on the recent decennial census of 2020. We do so for Ohio:
+
+```{r, results='hide', message=FALSE, warning=FALSE, error=FALSE}
+percent_black <- get_decennial(
+  geography = "tract",
+  variables = "P2_006N",
+  summary_var = "P2_001N",
+  geometry = TRUE, 
+  year = 2020 ,
+  state = "OH",
+) %>%
+  mutate(percent = 100 * (value / summary_value))
+
+head(percent_black)
+
+```
+
+We can have a look at it:
+
+```{r}
+mapview(percent_black, zcol = "percent", legend = TRUE)
+```
+
+Again we can use a loop to get data for all of the US states:
+
+```{r, eval=FALSE, results='hide', message=FALSE, warning=FALSE, error=FALSE}
+
+library(purrr)
+# Function to get percent black by state
+get_percent_black_by_state <- function(state) {
+  get_decennial(
+    geography = "tract",
+    variables = "P2_006N",
+    summary_var = "P2_001N",
+    year = 2020,
+    geometry = TRUE,
+    state = state
+  ) %>%
+    mutate(state = state, percent_black = 100 * (value / summary_value))
+}
+
+# Use map_df from purrr to iterate over states and bind the results together
+percent_black_all_states <- map_df(states, get_percent_black_by_state)
+```
+
+Now that we have data on median income and the percent of Black NH by census tract for Ohio, we could look at simple statistics to explore disparities in exposure to heat events using the GridEX data:
+
+```{r}
+
+temp <- read.csv(file = "C:\\Users\\contekeivabu\\Desktop\\TEACHING\\PAA_2024\\data\\temp_oh.csv", header = TRUE )
+head(temp)
+```
+
+We summarize the total number of heat and cold events by census tract over the years:
+
+```{r}
+events_total <- temp %>%
+group_by(GEOID, event_type) %>%
+ summarise(total_event_days_sum = sum(total_event_days, na.rm = TRUE), .groups = 'drop')
+head(events_total)
+```
+
+We first look at the correlation with income.
+
+```{r}
+merged_inc <- merge(median_income_oh, events_total, by = "GEOID")
+head(merged_inc)
+```
+
+We keep only the heat events and check the association:
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+extreme_heat_data <- merged_inc %>%
+  filter(event_type == "Extreme Heat Event")
+##
+ggplot(extreme_heat_data, aes(x = estimate, y = total_event_days_sum)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Median Household Income and Extreme Heat in the US",
+       x = "Median Household Income",
+       y = "Total Event Days Sum") +
+  theme_minimal()
+```
+
+Now we can do the same for the percentage of Black NH:
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+merged_df <- merge(percent_black, events_total, by = "GEOID")
+##
+extreme_heat_data_race <- merged_df %>%
+  filter(event_type == "Extreme Heat Event")
+head(merged_df)
+##
+ggplot(extreme_heat_data_race, aes(x = percent, y = total_event_days_sum)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Percentage Black NH and Extreme Heat",
+       x = "% Black NH",
+       y = "Total Event Days Sum") +
+  theme_minimal()
+```
+
+We can do something similarly with the percentage of individuals aged above 65:
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+
+# Specify variables
+vars <- c("B01001_001",  # Total population
+          "B01001_020",  # Male: 65 and 66 years
+          "B01001_021",  # Male: 67 to 69 years
+          "B01001_022",  # Male: 70 to 74 years
+          "B01001_023",  # Male: 75 to 79 years
+          "B01001_024",  # Male: 80 to 84 years
+          "B01001_025",  # Male: 85 years and over
+          "B01001_044",  # Female: 65 and 66 years
+          "B01001_045",  # Female: 67 to 69 years
+          "B01001_046",  # Female: 70 to 74 years
+          "B01001_047",  # Female: 75 to 79 years
+          "B01001_048",  # Female: 80 to 84 years
+          "B01001_049")  # Female: 85 years and over
+
+
+
+# Fetch data for a specific census tract in a given state and county
+data_age <- get_acs(geography = "tract", 
+                variables = vars, 
+                state = "OH" ,
+                survey = "acs5",
+                year = 2021)
+
+```
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+head(data_age)
+```
+
+# Summarize the total and elderly population within each tract
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+
+# Summarize the total and elderly population within each tract
+tract_data_age <- data_age %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = sum(estimate[variable == "B01001_001"]),
+            elderly_pop = sum(estimate[variable %in% vars[-1]])) %>%
+  mutate(proportion_elderly = 100 * (elderly_pop / total_pop)) %>%
+  select(GEOID, total_pop, elderly_pop, proportion_elderly)
+head(tract_data_age)
+```
+
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+merged_age <- merge(tract_data_age, events_total, by = "GEOID")
+head(merged_age)
+extreme_heat_data_age <- merged_age %>%
+  filter(event_type == "Extreme Heat Event")
+##
+ggplot(extreme_heat_data_age, aes(x = proportion_elderly, y = total_event_days_sum)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Percentage above age 65 and Extreme Heat in Ohio",
+       x = "Percentage > age 65",
+       y = "Total Event Days Sum") +
+  theme_minimal()
+```
+
+## Raster data
+
+In the previous examples, we connected the GridEx data with sociodemographic information based on the GEOID. Nevertheless, we might need to connect data with administrative areas other than census tracts, counties or states. Lets' try to connect EHE data for school districts in Ohio:
+
+```{r, results='hide', message=FALSE, warning=FALSE, error=FALSE}
+schools= school_districts("OH")
+
+```
+
+We have a look at it:
+
+```{r}
+
+head(schools)
+mapview(schools)
+
+```
+
+Now we load the raster data for EHE:
+
+```{r}
+ehe = rast("C:/Users/contekeivabu/Desktop/TEACHING/PAA_2024/data/Y2022_S426_T102_ehe_unified_grids_500_cumulative.tif")
+plot(ehe)
+
+```
+
+we can crop the data only around Ohio:
+
+```{r}
+### We change the CRS of the school data first:
+(
+schools_crs <- st_transform(schools, st_crs(ehe))
+)
+####
+ehe_crop <- terra::crop(ehe, schools_crs)
+plot(ehe_crop)
+
+```
+
+```{r}
+ehe_extract <- exact_extract(ehe_crop, schools_crs, 'mean', 
+                                    append_cols = 'NAME', progress=FALSE)
+head(ehe_extract)
+```
+
+```{r}
+ehe_schools <- merge(schools_crs,ehe_extract, by = "NAME",  all.x = TRUE, all.y = FALSE)
+ehe_schools$mean= round(ehe_schools$mean, 2)
+mapview(ehe_schools , zcol="mean")
+```
+
+## Resources:
+
+<https://walker-data.com/census-r/> ; <https://r.geocompx.org/> ; <https://www.paulamoraga.com/book-spatial/index.html> ; <https://tmieno2.github.io/R-as-GIS-for-Economists/index.html> <https://cran.r-project.org/web/packages/exactextractr/readme/README.html.>
+
+Thanks a lot for your attention!

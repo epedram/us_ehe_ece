@@ -90,7 +90,7 @@ names(ece_daily_stack_2022)
 plot(ece_daily_stack_2022$`2022-01-08`)
 ```
 
-### Explore the total impact of ECEs for a sample year (2022)
+### Explore the cumulative impact of ECEs for a sample year (2022)
 
 ```{r}
 yearly_data_dir <- "../Data/GridEX_C15_S426_T902_cumulative_raster_dataset"
@@ -106,4 +106,3 @@ minmax(total_ece_days_2022)
 plot(total_ece_days_2022)
 plot(us_states[2], add = T, col = NA)
 ```
-
