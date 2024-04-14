@@ -7,20 +7,20 @@ format: html
 editor: visual
 ---
 
-## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+## PAA2024 - Extreme Heat and Cold Events (EHE/ECE) Exposure Assessment with GridEX
 
 April 2024, PAA Annual Meeting
 
-### Session 2B - Exploring the extreme events intensity and grid surfaces
+### Session 2B - Exploring the extreme events intensity
 
 Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu
 
 Here we start with retrieving the actual gridded layers of EHE/ECE covering the continental United States. You'll then work with the stacked and cumulative layers presenting different temporal scales of extreme events.
 
-```{r,  message=TRUE, warning=FALSE, error=TRUE}
-## install.packages(c("sf", "terra", "tidyverse"))
+For a detailed reference of GridEX naming convention and their corresponding spatial and temporal scales, please check out this worksheet: [GridEX Naming Convention](https://docs.ghttps://docs.google.com/spreadsheets/d/1SWrflS3zi_ZPSobYhfe4LvvVgeQ3DJOW5tFHT9AQjeA/edit#gid=0 "GridEX Naming Convention").
 
+```{r,  message=TRUE, warning=FALSE, error=TRUE}
 library(sf)
 library(terra)
 
@@ -29,29 +29,31 @@ library(terra)
 # # Check out the data folders for today's workshop
 # list.files(workshop_dataset, full.names = TRUE)
 
-daily_raster_dir <- "../Data/GridEX_C15_S526_T002_daily_raster_dataset"
+daily_raster_dir <- "../Data/GridEX_T002_daily_raster_dataset"
 list.files(daily_raster_dir)
 ```
 
+## Which areas were impacted by EHEs/ECEs?
+
+We first select a layer from the dataset of daily rasters called "GridEX_T002_daily_raster_dataset". We then load the interpolated surface of extreme event intensity using "terra" package.
+
 ### Inspect a sample day of extreme cold event (ECE)
 
-[GridEX Naming Convention](https://docs.ghttps://docs.google.com/spreadsheets/d/1SWrflS3zi_ZPSobYhfe4LvvVgeQ3DJOW5tFHT9AQjeA/edit#gid=0)
-
-We first select a layer from the dataset of daily rasters called "GridEX_C15_S526_T002_daily_raster_dataset". We then load the interpolated surface of extreme event intensity using "terra" package.
+```{r}
+list.files(daily_raster_dir, pattern = "idw")
+```
 
 ```{r}
-list.files(daily_raster_dir, pattern = "ece")
-
 ehce_daily_raster_22Jan02 <- rast(file.path(daily_raster_dir, "D2022-01-02_S526_T002_idw_ehce_grid.tif"))
 
 class(ehce_daily_raster_22Jan02)
+
+dim(ehce_daily_raster_22Jan02)
 ```
 
 Then inspect properties of the loaded layer.
 
 ```{r}
-dim(ehce_daily_raster_22Jan02)
-
 #cell size
 res(ehce_daily_raster_22Jan02)
 
@@ -67,11 +69,13 @@ minmax(ehce_daily_raster_22Jan02)
 ```
 
 ### Map the spatial distribution of event intensity for a sample day
-We also load the spatial layer of States boundaries to better visualize the extent of ECE
-```{r}
-us_states <- sf::st_read(file.path("../Data/Census_admin_boundaries","tigris_states_geo_CRS5070.gpkg"))
 
+We also load the spatial layer of States boundaries to better visualize the extent of ECE
+
+```{r}
 plot(ehce_daily_raster_22Jan02)
+
+us_states <- sf::st_read(file.path("../Data/Census_admin_boundaries","tigris_states_geo_CRS5070.gpkg"))
 plot(us_states[2], add = T, col = NA) 
 #plot(daily_events_2022_01_02[1], add = T)
 ```
@@ -88,7 +92,7 @@ plot(us_states[2], add = T, col = NA)
 ### Explore the stacked dataset of ECE for a sample year (2022)
 
 ```{r}
-ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S426_T102_ece_unified_grids_500_stack.tif"))
+ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_stack.tif"))
 print(ece_daily_stack_2022)
 
 names(ece_daily_stack_2022)
@@ -98,11 +102,10 @@ names(ece_daily_stack_2022)
 plot(ece_daily_stack_2022)
 ```
 
-### Navigating stacked layers
+### Navigating the stacked layers
 
 ```{r}
-plot(ece_daily_stack_2022$`2022-01-08`)
+plot(ece_daily_stack_2022$`2022-01-07`)
 
 plot(us_states[2], add = T, col = NA) 
 ```
-

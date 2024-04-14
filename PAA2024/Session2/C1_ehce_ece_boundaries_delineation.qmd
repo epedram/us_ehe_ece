@@ -7,11 +7,11 @@ format: html
 editor: visual
 ---
 
-## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+## PAA2024 - Extreme Heat and Cold Events (EHE/ECE) Exposure Assessment with GridEX
 
 April 2024, PAA Annual Meeting
 
-### Session 2C - Exploring the aggregate impacts of extreme events
+### Session 2C - Exploring the impacts of extreme events within administrative boundaries
 
 Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu
@@ -32,8 +32,8 @@ census_data_dir <- "../Data/Census_admin_boundaries"
 us_states <- st_read(file.path(census_data_dir, "tigris_states_geo_CRS5070.gpkg"))
 us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.gpkg"))
 
-daily_data_dir <- "../Data/GridEX_C15_S526_T002_daily_raster_dataset"
-list.files(daily_data_dir)
+daily_data_dir <- "../Data/GridEX_T002_daily_raster_dataset"
+list.files(daily_data_dir, pattern = "idw")
 ```
 
 ```{r}
@@ -46,23 +46,26 @@ plot(us_states[2], add = T, col = NA)
 ## Dissolving the events intensity surfaces
 
 ```{r}
-ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S426_T002_idw_ece_unified_grid.tif"))
+ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S422_T002_idw_ece_dissolved_grid.tif"))
 plot(ece_daily_raster_22Jan03, col = "blue")
 plot(us_states[2], add = T, col = NA)
 ```
 
-## Idenfitying an event boundaries
+## Identifying events boundaries
 
 ```{r}
 daily_vectors_dir <- "../Data/GridEX_S123_T002_daily_vector_dataset_GPKG"
-list.files(daily_vectors_dir)
+list.files(daily_vectors_dir, "vector_boundaries")
 
+```
+
+```{r}
 ehe_ece_boundaries_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S400_T002_ehe_ece_vector_boundaries_CRS5070.gpkg"))
 
 #print(ehe_ece_boundaries_2022)
 #View(ehe_ece_boundaries_2022)
 
-head(ehe_ece_boundaries_2022)
+#head(ehe_ece_boundaries_2022)
 ls(ehe_ece_boundaries_2022)
 ```
 
@@ -71,16 +74,20 @@ ehe_ece_boundaries_2022_01_03 <- ehe_ece_boundaries_2022 %>%
   dplyr::filter(event_date == "2022-01-03")
 
 plot(ece_daily_raster_22Jan03, col = "blue")
-#plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
+plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
 
 #plot(ehce_daily_raster_22Jan03)
 #plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
 ```
 
+## 
+
 ```{r}
 plot(ehce_daily_raster_22Jan03)
 plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
 ```
+
+## Overlay EHE/ECE with administrative boundaries
 
 ```{r}
 plot(ehce_daily_raster_22Jan03)
