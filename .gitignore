@@ -36,6 +36,7 @@ vignettes/*.pdf
 *.knit.md
 *.html
 *.htm
+*_files/
 
 # R Environment Variables
 .Renviron
