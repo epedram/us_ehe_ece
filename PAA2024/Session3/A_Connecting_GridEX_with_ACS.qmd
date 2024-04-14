@@ -183,7 +183,7 @@ Now that we have data on median income and the percent of Black NH by census tra
 
 ```{r}
 
-temp <- read.csv(file = "C:\\Users\\contekeivabu\\Desktop\\TEACHING\\PAA_2024\\data\\temp_oh.csv", header = TRUE )
+temp <- read.csv(file = "../Data/temp_oh.csv", header = TRUE )
 head(temp)
 ```
 

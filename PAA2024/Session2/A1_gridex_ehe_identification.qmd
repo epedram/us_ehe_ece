@@ -26,15 +26,16 @@ Prefer to set up your own environment? The Setup folder contains a notebook list
 
 ### Exploring curated NOAA sensors data
 
-Here's a list of R packages we'll need for exploring spatial data in this session. These are already pre-installed on our Posit Cloud instances, so all we need to do is load them using the first code chunk.
+In every notebook, the initial code section contains a list of R packages necessary for analyzing the GridEX data elements associated with each session. These packages are pre-installed on our Posit Cloud instances, so all that's required is to load them within the first code chunk.
 
-```{r}
+```{r,  message=TRUE, warning=FALSE, error=TRUE}
 ## install.packages(c("sf", "tidyverse"))
 
 library(sf)
 library(dplyr)
 library(ggplot2)
 
+workshop_dataset <- "../Data"
 
 # Check out the content of data folders for today's workshop
 list.files(workshop_dataset, full.names = TRUE)
@@ -48,7 +49,7 @@ To simplify data identification and organization, we've implemented a specific n
 
 For a detailed breakdown of file names and their corresponding spatial and temporal scales, you can refer to the naming convention guide in this Google Sheet:
 
-[GridEX Naming Convention](https://docs.google.com/spreadsheets/d/1N73SnxaKX-0x1m5EM5WhXkWj1NASqk1QTfkjfmxofRw "GridEX Naming Convention")
+[GridEX Naming Convention](https://docs.ghttps://docs.google.com/spreadsheets/d/1SWrflS3zi_ZPSobYhfe4LvvVgeQ3DJOW5tFHT9AQjeA/edit#gid=0 "GridEX Naming Convention")
 
 ### Explore the catalog of sensors from the NOAA's Integrated Surface Dataset (NOAA ISD):
 
@@ -57,6 +58,8 @@ https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:
 ```{r}
 data_dir <- "../Data/NOAA_sensors_dataset"
 #list.files(data_dir, full.names = TRUE)
+
+workshop_dataset <- "../Data"
 
 noaa_stations <- st_read(file.path(data_dir, "NOAA_C16_S900_noaa_stations_geo_CRS4269.gpkg"))
 
@@ -103,6 +106,7 @@ dim(noaa_daily_imputed_ca)
 number_of_days <- length(unique(noaa_daily_imputed_ca$YYYY_MM_DD))
 number_of_days
 #number_of_days / 16
+
 ```
 
 ## Correlation of the derived “Daily Mean Apparent Temperature” and the “Daily Mean Temperature”
@@ -134,6 +138,7 @@ daily_events_ca <- st_read(file.path(data_dir, "C15_S900_T002_noaa_ehe_ece_days_
 daily_ece_ca <- daily_events_ca %>% filter(Event_Type == "Extreme Cold Event") %>% st_drop_geometry() %>% filter(year_number == 2020)
 
 daily_ehe_ca <- daily_events_ca %>% filter(Event_Type == "Extreme Heat Event") %>% st_drop_geometry() %>% filter(year_number == 2020)
+
 ```
 
 ### Visualize the correlation of the derived “Excess Heat and Cold Factors” and the “Daily Mean Temperature”
@@ -153,9 +158,10 @@ ggplot(daily_ehe_ca, aes(x = temperature_max,
 ```
 
 ```{r}
-ls(daily_ece_ca)
+#ls(daily_ece_ca)
 ggplot(daily_ece_ca, aes(x = temperature_min,
                                   y = ECF)) +
+                                  #y = EHCMI_normalized)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "loess", se = FALSE, color = "blue") +
   labs(title = "Correlation between the “Excess Cold Factor” and “Daily Mean Temperature",
