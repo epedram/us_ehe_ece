@@ -1,0 +1,98 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Exploring the cumulative impacts of extreme events"
+author: "Pedram Fard"
+
+format: html
+editor: visual
+---
+
+## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+
+April 2024, PAA Annual Meeting
+
+### Session 2D - Exploring the cumulative impacts of extreme events
+
+Author: Pedram Fard, Researcher at Harvard Medical School\
+email: pedram_fard\@hms.harvard.edu
+
+In this notebook we work with the raster layers representing the cumulative impacts of extreme heat and cold events (EHE/ECEs) in the US.
+
+For more information see: [Spatio-temporal interpolation and delineation of extreme heat events in California between 2017 and 2021](https://www.sciencedirect.com/science/article/pii/S0013935123017887?dgcid=rss_sd_all)
+
+```{r, message=TRUE, warning=FALSE, error=TRUE}
+
+library(sf)
+library(terra)
+library(leaflet)
+
+#workshop_dataset <- "../Data"
+## Check out the data folders for today workshop
+#list.files(workshop_dataset, full.names = TRUE)
+
+# Load the spatial layers of administrative boundaries 
+census_data_dir <- "../Data/Census_admin_boundaries"
+
+us_states <- st_read(file.path(census_data_dir, "tigris_states_geo_CRS5070.gpkg"))
+us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.gpkg"))
+```
+
+```{r}
+daily_raster_dir <- "../Data/GridEX_T002_daily_raster_dataset"
+list.files(daily_raster_dir)
+```
+
+### Explore the stacked dataset of ECE for a sample year (2022)
+
+```{r}
+ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_stack.tif"))
+print(ece_daily_stack_2022)
+```
+
+```{r}
+plot(ece_daily_stack_2022)
+```
+
+### Explore the cumulative impact of ECEs for a sample year (2022)
+
+```{r}
+yearly_raster_dir <- "../Data/GridEX_S420_T902_cumulative_raster_dataset"
+#list.files(yearly_raster_dir)
+
+total_ece_days_2022 <- rast(file.path(yearly_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_cumulative.tif"))
+
+print(total_ece_days_2022)
+
+```
+
+```{r}
+minmax(total_ece_days_2022)
+#minmax(total_ece_days_2022)[2,1]
+
+plot(total_ece_days_2022)
+plot(us_states[2], add = T, col = NA)
+```
+
+```{r}
+total_ece_days_stack <- rast(file.path(yearly_raster_dir, "C15_T102_S421_ehe_dissolved_cumulative_grids_500_stack.tif"))
+
+print(total_ece_days_stack)
+```
+
+```{r}
+plot(total_ece_days_stack)
+plot(us_states[2], add = T, col = NA)
+```
+
+```{r}
+cumulative_total_ece_days <- rast(file.path(yearly_raster_dir, "C15_T902_S421_ehe_dissolved_cumulative_grids_500.tif"))
+
+print(cumulative_total_ece_days)
+```
+
+### Total EHE
+
+```{r}
+plot(cumulative_total_ece_days)
+plot(us_states[2], add = T, col = NA)
+```

@@ -1,0 +1,70 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Exploring the cumulative impacts of extreme events"
+author: "Pedram Fard"
+
+format: html
+editor: visual
+---
+
+## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
+
+April 2024, PAA Annual Meeting
+
+### Session 2D - Exploring the cumulative impacts of extreme events
+
+Author: Pedram Fard, Researcher at Harvard Medical School\
+email: pedram_fard\@hms.harvard.edu
+
+In this notebook we work with the raster layers representing the cumulative impacts of extreme heat and cold events (EHE/ECEs) in the US.
+
+For more information see: [Spatio-temporal interpolation and delineation of extreme heat events in California between 2017 and 2021](https://www.sciencedirect.com/science/article/pii/S0013935123017887?dgcid=rss_sd_all)
+
+```{r, message=TRUE, warning=FALSE, error=TRUE}
+
+library(sf)
+library(terra)
+library(leaflet)
+
+#workshop_dataset <- "../Data"
+## Check out the data folders for today workshop
+#list.files(workshop_dataset, full.names = TRUE)
+
+# Load the spatial layers of administrative boundaries 
+census_data_dir <- "../Data/Census_admin_boundaries"
+
+us_states <- st_read(file.path(census_data_dir, "tigris_states_geo_CRS5070.gpkg"))
+us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.gpkg"))
+```
+
+```{r}
+impacted_areas_CA_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S190_T002_impacted_area_variables_intensity_Counties_wideformat_CRS4269_CA.gpkg"))
+
+head(impacted_areas_CA_2022)
+#View(impacted_areas_CA_2022)
+
+length(unique(impacted_areas_CA_2022$event_date))
+
+impacted_areas_CA_2022_01_03 <- impacted_areas_CA_2022 %>% 
+  dplyr::filter(event_date == "2022-01-03")
+
+ls(impacted_areas_CA_2022_01_03)
+plot(impacted_areas_CA_2022["ehcmi_normalized_median_intensity"])
+```
+
+-   When analyzing the daily impacts data particularly for extended durations, it is recommended to work with tabular data. After performing your analysis you can then join the final results to the associated geometries.
+
+```{r}
+list.files(daily_vectors_dir)
+
+C15_counties_impacted_areas <- readRDS(file.path(daily_vectors_dir, "C15_S190_T002_impacted_vars_intensity_Counties_TB.rds"))
+
+head(C15_counties_impacted_areas)
+```
+
+## GridEX Shiny app demo
+
+https://ehce.connect.hms.harvard.edu/us_ehe_ece/
+
+I)  Explore extreme events dynamics and aggregate impacts
+II) Explore extreme events aggregate impacts

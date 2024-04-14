@@ -42,8 +42,7 @@ ehce_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S526_T0
 plot(ehce_daily_raster_22Jan03)
 plot(us_states[2], add = T, col = NA) 
 ```
-
-## Dissolving the events intensity surfaces
+### Dissolving the events intensity surfaces
 
 ```{r}
 ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S422_T002_idw_ece_dissolved_grid.tif"))
@@ -51,24 +50,29 @@ plot(ece_daily_raster_22Jan03, col = "blue")
 plot(us_states[2], add = T, col = NA)
 ```
 
-## Identifying events boundaries
+### Identifying event boundaries
 
+Compute the vector boundaries from the dissolved raster layer
+```{r}
+
+```
+
+Read the pre-computed boundaries
 ```{r}
 daily_vectors_dir <- "../Data/GridEX_S123_T002_daily_vector_dataset_GPKG"
 list.files(daily_vectors_dir, "vector_boundaries")
 
-```
-
-```{r}
 ehe_ece_boundaries_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S400_T002_ehe_ece_vector_boundaries_CRS5070.gpkg"))
 
 #print(ehe_ece_boundaries_2022)
 #View(ehe_ece_boundaries_2022)
 
 #head(ehe_ece_boundaries_2022)
-ls(ehe_ece_boundaries_2022)
+#ls(ehe_ece_boundaries_2022)
 ```
+### Mapping the combination of raster and vector layers for a sample day of ECE
 
+Query and subset the data for a specific day of ECE (Jan 03, 2022)
 ```{r}
 ehe_ece_boundaries_2022_01_03 <- ehe_ece_boundaries_2022 %>% 
   dplyr::filter(event_date == "2022-01-03")
@@ -80,11 +84,12 @@ plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
 #plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
 ```
 
-## 
+Load the additional variables computed for the impacted area
 
 ```{r}
-plot(ehce_daily_raster_22Jan03)
-plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
+ece_daily_raster_vars_stacks_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_daily_idw_variables_stack.tif"))
+
+plot(ece_daily_raster_vars_stacks_22Jan03)
 ```
 
 ## Overlay EHE/ECE with administrative boundaries
@@ -98,34 +103,3 @@ plot(us_counties[2], col = NA, add = T)
 #plot(us_states[2], add = T, col = NA)
 ```
 
-```{r}
-impacted_areas_CA_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S190_T002_impacted_area_variables_intensity_Counties_wideformat_CRS4269_CA.gpkg"))
-
-head(impacted_areas_CA_2022)
-#View(impacted_areas_CA_2022)
-
-length(unique(impacted_areas_CA_2022$event_date))
-
-impacted_areas_CA_2022_01_03 <- impacted_areas_CA_2022 %>% 
-  dplyr::filter(event_date == "2022-01-03")
-
-ls(impacted_areas_CA_2022_01_03)
-plot(impacted_areas_CA_2022["ehcmi_normalized_median_intensity"])
-```
-
--   When analyzing the daily impacts data particularly for extended durations, it is recommended to work with tabular data. After performing your analysis you can then join the final results to the associated geometries.
-
-```{r}
-list.files(daily_vectors_dir)
-
-C15_counties_impacted_areas <- readRDS(file.path(daily_vectors_dir, "C15_S190_T002_impacted_vars_intensity_Counties_TB.rds"))
-
-head(C15_counties_impacted_areas)
-```
-
-## GridEX Shiny app demo
-
-https://ehce.connect.hms.harvard.edu/us_ehe_ece/
-
-I)  Explore extreme events dynamics and aggregate impacts
-II) Explore extreme events aggregate impacts
