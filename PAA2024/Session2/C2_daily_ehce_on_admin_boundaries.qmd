@@ -1,0 +1,66 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Exploring the aggregate impacts of extreme events"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
+
+format: html
+editor: visual
+---
+email: pedram_fard\@hms.harvard.edu
+
+### April 2024, PAA Annual Meeting
+
+## Session 2 - Part C - Exploring the daily impacts of extreme events within administrative boundaries
+
+```{r, message=TRUE, warning=FALSE, error=TRUE}
+library(terra)
+library(sf)
+
+#workshop_dataset <- "../Data"
+# Check out the data folders for today workshop
+#list.files(workshop_dataset, full.names = TRUE)
+
+# Load the spatial layers of administrative boundaries 
+census_data_dir <- "../Data/Census_admin_boundaries"
+
+us_states <- st_read(file.path(census_data_dir, "tigris_states_geo_CRS5070.gpkg"))
+us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.gpkg"))
+
+daily_data_dir <- "../Data/GridEX_T002_daily_raster_dataset"
+list.files(daily_data_dir, pattern = "idw")
+```
+
+"S190" indicates that we are loading the County level data.
+"T002" means this file only includes records of the days experiencing at least one type of extreme events.
+
+```{r}
+impacted_areas_CA_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S190_T002_impacted_area_variables_intensity_Counties_wideformat_CRS4269_CA.gpkg"))
+
+#View(impacted_areas_CA_2022)
+ls(impacted_areas_CA_2022)
+
+length(unique(impacted_areas_CA_2022$event_date))
+```
+
+
+```{r}
+#head(impacted_areas_CA_2022)
+
+impacted_areas_CA_2022_01_03 <- impacted_areas_CA_2022 %>% 
+  dplyr::filter(event_date == "2022-01-03")
+
+plot(impacted_areas_CA_2022["ehcmi_normalized_median_intensity"])
+```
+
+-   When analyzing the daily impacts data particularly for extended durations, it is recommended to work with tabular data. After performing your analysis you can then join the final results to the associated geometries.
+
+```{r}
+list.files(daily_vectors_dir)
+
+C15_counties_impacted_areas <- readRDS(file.path(daily_vectors_dir, "C15_S190_T002_impacted_vars_intensity_Counties_TB.rds"))
+
+head(C15_counties_impacted_areas)
+
+```
+

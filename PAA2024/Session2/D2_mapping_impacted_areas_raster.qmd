@@ -1,20 +1,18 @@
 ---
 title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
 subtitle: "Exploring the cumulative impacts of extreme events"
-author: "Pedram Fard"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
 
 format: html
 editor: visual
 ---
 
-## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
-
-April 2024, PAA Annual Meeting
-
-### Session 2D - Exploring the cumulative impacts of extreme events
-
-Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu
+
+### April 2024, PAA Annual Meeting
+
+## Session 2 - Part D - Exploring the cumulative impacts of extreme events
 
 In this notebook we work with the raster layers representing the cumulative impacts of extreme heat and cold events (EHE/ECEs) in the US.
 
@@ -42,8 +40,10 @@ list.files(daily_raster_dir)
 
 ### Explore the stacked dataset of ECE for a sample year (2022)
 
+"S422" tells us that we're bringing in gridded data covering areas experienced extreme cold event. "T002" tells us that this file has daily temporal resolution.
+
 ```{r}
-ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_stack.tif"))
+ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T002_ece_dissolved_grids_500_stack.tif"))
 
 print(ece_daily_stack_2022)
 ```
@@ -59,6 +59,9 @@ yearly_raster_dir <- "../Data/GridEX_S420_T902_cumulative_raster_dataset"
 list.files(yearly_raster_dir)
 ```
 
+"S422": raster layer presenting extreme cold event
+
+"T102": the cell values represent the total number of events in one year
 
 ```{r}
 total_ece_days_2022 <- rast(file.path(yearly_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_cumulative.tif"))
@@ -76,6 +79,12 @@ plot(total_ece_days_2022)
 plot(us_states[2], add = T, col = NA)
 ```
 
+"S422": raster layer presenting extreme cold event
+
+"T102": the cell values represent the total number of events in one year
+
+"C15\_...\_stack": The temporal coverage is the entire 15 years (2008-2002)
+
 ```{r}
 total_ece_days_stack <- rast(file.path(yearly_raster_dir, "C15_S422_T102_ece_unified_grids_500_stack.tif"))
 
@@ -86,6 +95,12 @@ print(total_ece_days_stack)
 plot(total_ece_days_stack)
 plot(us_states[2], add = T, col = NA)
 ```
+
+### Explore the cumulative impact of ECEs for the entire period
+
+"S422": raster layer presenting extreme cold event
+
+"T902": the cell values represent the total number of events in the entire 15 years
 
 ```{r}
 cumulative_total_ece_days <- rast(file.path(yearly_raster_dir, "C15_S422_T902_ece_unified_grids_500_cumulative.tif"))

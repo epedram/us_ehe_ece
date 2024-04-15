@@ -44,7 +44,7 @@ View(places_county_2023)
 ### Load and subset the extreme heat events frequency
 
 ```{r}
-events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries","S190_Counties_events_by_type_by_year_2008_2022.rds"))[[1]] 
+events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries","C15_S190_T102_events_by_type_by_year_Counties.rds"))
 
 ehe_counties_ca_2022 <- events_frequency_counties %>% 
   dplyr::filter(event_type == "Extreme Heat Event") %>% 

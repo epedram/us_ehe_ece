@@ -1,0 +1,110 @@
+---
+title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Exploring the aggregate impacts of extreme events"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
+
+format: html
+editor: visual
+---
+
+email: pedram_fard\@hms.harvard.edu
+
+### April 2024, PAA Annual Meeting
+
+## Session 2C - Exploring the impacts of extreme events within administrative boundaries
+
+Author: Pedram Fard, Researcher at Harvard Medical School\
+email: pedram_fard\@hms.harvard.edu
+
+In this notebook we explore techniques to summarize the extreme events characteristics including event intensity and spatial extent. We'll focus on extracting values from grid layers overlapping different vector layers representing administrative boundaries.
+
+```{r, message=TRUE, warning=FALSE, error=TRUE}
+library(terra)
+library(sf)
+
+#workshop_dataset <- "../Data"
+# Check out the data folders for today workshop
+#list.files(workshop_dataset, full.names = TRUE)
+
+# Load the spatial layers of administrative boundaries 
+census_data_dir <- "../Data/Census_admin_boundaries"
+
+us_states <- st_read(file.path(census_data_dir, "tigris_states_geo_CRS5070.gpkg"))
+us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.gpkg"))
+
+daily_data_dir <- "../Data/GridEX_T002_daily_raster_dataset"
+list.files(daily_data_dir, pattern = "idw")
+```
+
+```{r}
+ehce_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S526_T002_idw_ehce_grid.tif"))
+
+plot(ehce_daily_raster_22Jan03)
+plot(us_states[2], add = T, col = NA) 
+```
+
+### Dissolving the events intensity surfaces
+
+```{r}
+ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S422_T002_idw_ece_dissolved_grid.tif"))
+plot(ece_daily_raster_22Jan03, col = "blue")
+plot(us_states[2], add = T, col = NA)
+```
+
+### Identifying event boundaries
+
+Compute the vector boundaries from the dissolved raster layer
+
+```{r}
+
+```
+
+Read the pre-computed boundaries
+
+```{r}
+daily_vectors_dir <- "../Data/GridEX_S123_T002_daily_vector_dataset_GPKG"
+list.files(daily_vectors_dir, "vector_boundaries")
+
+ehe_ece_boundaries_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S400_T002_ehe_ece_vector_boundaries_CRS5070.gpkg"))
+
+#print(ehe_ece_boundaries_2022)
+#View(ehe_ece_boundaries_2022)
+
+#head(ehe_ece_boundaries_2022)
+#ls(ehe_ece_boundaries_2022)
+```
+
+### Mapping the combination of raster and vector layers for a sample day of ECE
+
+Query and subset the data for a specific day of ECE (Jan 03, 2022)
+
+```{r}
+ehe_ece_boundaries_2022_01_03 <- ehe_ece_boundaries_2022 %>% 
+  dplyr::filter(event_date == "2022-01-03")
+
+plot(ece_daily_raster_22Jan03, col = "blue")
+plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
+
+#plot(ehce_daily_raster_22Jan03)
+#plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA, add = T)
+```
+
+Load the additional variables computed for the impacted area
+
+```{r}
+ece_daily_raster_vars_stacks_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_daily_idw_variables_stack.tif"))
+
+plot(ece_daily_raster_vars_stacks_22Jan03)
+```
+
+## Overlay EHE/ECE with administrative boundaries
+
+```{r}
+plot(ehce_daily_raster_22Jan03)
+#plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA)
+plot(us_counties[2], col = NA, add = T)
+
+#plot(us_counties[2], col = NA)
+#plot(us_states[2], add = T, col = NA)
+```

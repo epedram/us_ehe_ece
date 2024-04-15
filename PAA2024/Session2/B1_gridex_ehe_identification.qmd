@@ -1,17 +1,18 @@
 ---
 title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
 subtitle: "Exploring the extreme events intensity and grid surfaces"
-author: "Pedram Fard"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
 
 format: html
 editor: visual
 ---
 
-## PAA2024 - Extreme Heat and Cold Events (EHE/ECE) Exposure Assessment with GridEX
+email: pedram_fard\@hms.harvard.edu
 
-April 2024, PAA Annual Meeting
+### April 2024, PAA Annual Meeting
 
-### Session 2B - Exploring the extreme events intensity
+## Session 2B - Exploring the extreme events intensity
 
 Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu

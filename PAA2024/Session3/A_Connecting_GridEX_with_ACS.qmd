@@ -320,7 +320,7 @@ mapview(schools)
 Now we load the raster data for EHE:
 
 ```{r}
-ehe = rast("C:/Users/contekeivabu/Desktop/TEACHING/PAA_2024/data/Y2022_S426_T102_ehe_unified_grids_500_cumulative.tif")
+ehe = rast("../Data/GridEX_S420_T902_cumulative_raster_dataset/Y2022_S421_T102_ehe_dissolved_grids_500_cumulative.tif")
 plot(ehe)
 
 ```
