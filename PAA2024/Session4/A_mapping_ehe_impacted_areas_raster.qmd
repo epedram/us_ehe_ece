@@ -40,67 +40,65 @@ daily_raster_dir <- "../Data/GridEX_T002_daily_raster_dataset"
 list.files(daily_raster_dir)
 ```
 
-### Explore the stacked dataset of ECE for a sample year (2022)
+### Explore the stacked dataset of EHE for a sample year (2022)
 
 ```{r}
-ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_stack.tif"))
+ehe_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S421_T102_ehe_dissolved_grids_500_stack.tif"))
 
-print(ece_daily_stack_2022)
+print(ehe_daily_stack_2022)
 ```
 
 ```{r}
-plot(ece_daily_stack_2022)
+plot(ehe_daily_stack_2022)
 ```
 
-### Explore the cumulative impact of ECEs for a sample year (2022)
+### Explore the cumulative impact of EHEs for a sample year (2022)
 
 ```{r}
 yearly_raster_dir <- "../Data/GridEX_S420_T902_cumulative_raster_dataset"
 list.files(yearly_raster_dir)
 ```
 
-
 ```{r}
-total_ece_days_2022 <- rast(file.path(yearly_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_cumulative.tif"))
+total_ehe_days_2022 <- rast(file.path(yearly_raster_dir, "Y2022_S421_T102_ehe_dissolved_grids_500_cumulative.tif"))
 
-print(total_ece_days_2022)
+print(total_ehe_days_2022)
 
 ```
 
 ```{r}
-minmax(total_ece_days_2022)
-#minmax(total_ece_days_2022)[2,1]
+minmax(total_ehe_days_2022)
 
-plot(total_ece_days_2022)
+plot(total_ehe_days_2022)
 
 plot(us_states[2], add = T, col = NA)
 ```
 
 ```{r}
-total_ece_days_stack <- rast(file.path(yearly_raster_dir, "C15_S422_T102_ece_unified_grids_500_stack.tif"))
+total_ehe_days_stack <- rast(file.path(yearly_raster_dir, "C15_S421_T102_ehe_unified_grids_500_stack.tif"))
 
-print(total_ece_days_stack)
+print(total_ehe_days_stack)
 ```
 
 ```{r}
-plot(total_ece_days_stack)
+plot(total_ehe_days_stack)
 plot(us_states[2], add = T, col = NA)
 ```
 
 ```{r}
-cumulative_total_ece_days <- rast(file.path(yearly_raster_dir, "C15_S422_T902_ece_unified_grids_500_cumulative.tif"))
+cumulative_total_ehe_days <- rast(file.path(yearly_raster_dir, "C15_S421_T902_ehe_unified_grids_500_cumulative.tif"))
 
-print(cumulative_total_ece_days)
+print(cumulative_total_ehe_days)
 ```
 
-### Total number of ECE days between 2008 and 2022
+### Total number of EHE days between 2008 and 2022
 
 ```{r}
 #plot(cumulative_total_ece_days)
 #plot(us_states[2], add = T, col = NA)
 
 # Define a color ramp, here's an example using a blue to red gradient
-color_ramp <- colorRampPalette(c("purple", "navy", "blue", "cyan2", "lightblue"))
+color_ramp <- colorRampPalette(c("brown4", "red3", "orange2", "yellow2", "yellow"))
 
 # Define the number of colors you want to use
 num_colors <- 100
@@ -109,19 +107,19 @@ num_colors <- 100
 colors <- rev(color_ramp(num_colors))
 
 # Plot the SpatRaster with the reversed colors
-plot(cumulative_total_ece_days, col=colors)
+plot(cumulative_total_ehe_days, col=colors)
 plot(us_states[2], add = T, col = NA)
 ```
 
 ```{r}
-minmax(cumulative_total_ece_days)
+minmax(cumulative_total_ehe_days)
 ```
 
 ```{r}
-hist(cumulative_total_ece_days)
+hist(cumulative_total_ehe_days)
 
 ## Extract the values from the raster
-#values <- values(cumulative_total_ece_days)
+#values <- values(cumulative_total_ehe_days)
 
 ## Remove NA values if necessary
 #values <- na.omit(values)
