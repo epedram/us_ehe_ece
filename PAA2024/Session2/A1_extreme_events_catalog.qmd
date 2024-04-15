@@ -7,6 +7,7 @@ email: pedram_fard@hms.harvard.edu
 format: html
 editor: visual
 ---
+
 email: pedram_fard\@hms.harvard.edu
 
 ### April 2024, PAA Annual Meeting
@@ -94,7 +95,9 @@ Read and inspect the station-based weather data for 16 years, stored in RDS form
 noaa_daily_imputed_ca <- readRDS(file.path(data_dir, "C16_S900_T001_noaa_daily_imputed_sf_CA_CRS5070.rds"))
 
 class(noaa_daily_imputed_ca)
-glimpse(noaa_daily_imputed_ca)
+#glimpse(noaa_daily_imputed_ca)
+
+#ls(noaa_daily_imputed_ca)
 ```
 
 ```{r}
@@ -104,8 +107,12 @@ number_of_stations_in_california
 dim(noaa_daily_imputed_ca)
 
 number_of_days <- length(unique(noaa_daily_imputed_ca$YYYY_MM_DD))
-number_of_days
-#number_of_days / 16
+cat("Number of days:",  number_of_days)
+
+number_of_years <- length(unique(noaa_daily_imputed_ca$year_factor))
+cat("\nNumber of years:",  number_of_years)
+
+#number_of_days / number_of_years
 
 ```
 

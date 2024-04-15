@@ -93,7 +93,7 @@ plot(us_states[2], add = T, col = NA)
 ### Explore the stacked dataset of ECE for a sample year (2022)
 
 ```{r}
-ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T102_ece_dissolved_grids_500_stack.tif"))
+ece_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S422_T002_ece_dissolved_grids_500_stack.tif"))
 print(ece_daily_stack_2022)
 
 names(ece_daily_stack_2022)

@@ -21,14 +21,15 @@ Install Packages
 ```{r}
 #clear environment
 #rm(list=ls(all=TRUE))
-
 #install.packages("sf") # main package to work with spatial vector data in R 
 #install.packages("tidyverse") # suit of packages to handle and visualize data 
-#install.packages("mapview") # provides easy way to create interactive maps 
-#install.packages("tigris") # provides a large range of geographical data for the US(e.g:census tracts, counties, roads)
-#install.packages("terra") # spatial data analysis with vector and raster data
-#install.packages("crsuggest") # allows to find the most suitable CRS for a certain location
+#install.packages("ggplot2") # visualization tool
+#install.packages("mapview") # easy way to create interactive maps 
+#install.packages("tigris") # large range of geographical data for the US(e.g:census tracts, counties, roads)
 #install.packages("tidycensus") #download census and ACS data
+#install.packages("terra") # spatial data analysis with vector and raster data
+#install.packages("exactextractr) # raster data operations
+#install.packages("purrr")
 ```
 
 Once we have installed the packages we have to load them:
@@ -37,13 +38,13 @@ Once we have installed the packages we have to load them:
 # Library
 library(sf)
 library(tidyverse)
+library(ggplot2)
 library(mapview)
 library(terra)
-library(ggplot2)
 library(tigris)
-library(crsuggest)
 library(tidycensus)
 library(exactextractr)
+library(purrr)
 ```
 
 ```         
@@ -82,7 +83,7 @@ income_vars
 
 ### Download data on income at the census tract level for Ohio
 
-We can visualize the data as follows:
+We can download the data as follows:
 
 ```{r, results='hide', message=T, warning=FALSE, error=FALSE}
 
@@ -270,17 +271,17 @@ data_age <- get_acs(geography = "tract",
 head(data_age)
 ```
 
-# Summarize the total and elderly population within each tract
+# Summarize the total and population above 65 within each tract
 
 ```{r,  message=FALSE, warning=FALSE, error=FALSE}
 
-# Summarize the total and elderly population within each tract
+
 tract_data_age <- data_age %>%
   group_by(GEOID) %>%
   summarize(total_pop = sum(estimate[variable == "B01001_001"]),
-            elderly_pop = sum(estimate[variable %in% vars[-1]])) %>%
-  mutate(proportion_elderly = 100 * (elderly_pop / total_pop)) %>%
-  select(GEOID, total_pop, elderly_pop, proportion_elderly)
+            age_pop = sum(estimate[variable %in% vars[-1]])) %>%
+  mutate(proportion_age = 100 * (age_pop / total_pop)) %>%
+  select(GEOID, total_pop, age_pop, proportion_age)
 head(tract_data_age)
 ```
 
@@ -290,7 +291,7 @@ head(merged_age)
 extreme_heat_data_age <- merged_age %>%
   filter(event_type == "Extreme Heat Event")
 ##
-ggplot(extreme_heat_data_age, aes(x = proportion_elderly, y = total_event_days_sum)) +
+ggplot(extreme_heat_data_age, aes(x = proportion_age, y = total_event_days_sum)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, color = "blue") +
   labs(title = "Percentage above age 65 and Extreme Heat in Ohio",
@@ -338,16 +339,14 @@ plot(ehe_crop)
 
 ```
 
-```{r}
-ehe_extract <- exact_extract(ehe_crop, schools_crs, 'mean', 
-                                    append_cols = 'NAME', progress=FALSE)
-head(ehe_extract)
+```{r,  message=FALSE, warning=FALSE, error=FALSE}
+schools_crs$heat <- exact_extract(ehe_crop, schools_crs, 'mean')
+head(schools_crs)
 ```
 
 ```{r}
-ehe_schools <- merge(schools_crs,ehe_extract, by = "NAME",  all.x = TRUE, all.y = FALSE)
-ehe_schools$mean= round(ehe_schools$mean, 2)
-mapview(ehe_schools , zcol="mean")
+mapview(schools_crs , zcol="heat")
+
 ```
 
 ## Resources:

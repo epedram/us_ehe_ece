@@ -43,7 +43,7 @@ list.files(daily_raster_dir)
 ### Explore the stacked dataset of EHE for a sample year (2022)
 
 ```{r}
-ehe_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S421_T102_ehe_dissolved_grids_500_stack.tif"))
+ehe_daily_stack_2022 <- rast(file.path(daily_raster_dir, "Y2022_S421_T002_ehe_dissolved_grids_500_stack.tif"))
 
 print(ehe_daily_stack_2022)
 ```
