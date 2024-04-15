@@ -12,16 +12,20 @@ email: pedram_fard\@hms.harvard.edu
 
 ### April 2024, PAA Annual Meeting
 
-## Session 2C - Exploring the impacts of extreme events within administrative boundaries
+## Session 2 - Part C - Exploring the impacts of extreme events within administrative boundaries
 
 Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu
 
 In this notebook we explore techniques to summarize the extreme events characteristics including event intensity and spatial extent. We'll focus on extracting values from grid layers overlapping different vector layers representing administrative boundaries.
 
+For a look up reference of FIPS codes please see:\
+[Federal Information Processing System (FIPS) Codes for States and Counties](https://transition.fcc.gov/oet/info/maps/census/fips/fips.txt)
+
 ```{r, message=TRUE, warning=FALSE, error=TRUE}
 library(terra)
 library(sf)
+library(dplyr)
 
 #workshop_dataset <- "../Data"
 # Check out the data folders for today workshop
@@ -42,25 +46,70 @@ ehce_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S526_T0
 
 plot(ehce_daily_raster_22Jan03)
 plot(us_states[2], add = T, col = NA) 
+
 ```
 
-### Dissolving the events intensity surfaces
+### Processing the events intensity surfaces using raster operations
 
 ```{r}
-ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S422_T002_idw_ece_dissolved_grid.tif"))
+ece_daily_raster_22Jan03 <- ehce_daily_raster_22Jan03
+ece_daily_raster_22Jan03[(ece_daily_raster_22Jan03 < 0)] <- -1 
+ece_daily_raster_22Jan03[(ece_daily_raster_22Jan03 > 0)] <- NA
+
 plot(ece_daily_raster_22Jan03, col = "blue")
 plot(us_states[2], add = T, col = NA)
 ```
 
-### Identifying event boundaries
-
-Compute the vector boundaries from the dissolved raster layer
+Loading the same layer from the pre-computed dataset
 
 ```{r}
+# ece_daily_raster_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01-03_S422_T002_idw_ece_dissolved_grid.tif"))
+# plot(ece_daily_raster_22Jan03, col = "blue")
+# plot(us_states[2], add = T, col = NA)
+```
+
+### Identifying a sample event boundaries
+
+Delineate the vector boundaries from the dissolved raster layer using methods from "terra" library.
+
+```{r}
+idw_ehce_vector_boundaries_22Jan03 <- 
+as.polygons(ece_daily_raster_22Jan03, dissolve=TRUE) %>% 
+fillHoles(.)
+
+dim(idw_ehce_vector_boundaries_22Jan03)
+#View(idw_ehce_vector_boundaries_22Jan03)
 
 ```
 
-Read the pre-computed boundaries
+```{r}
+plot(idw_ehce_vector_boundaries_22Jan03)
+plot(us_states[2], add = T, col = NA)
+
+```
+
+Converting the primarily derived vector into a more flexible format using methods from "sf" library.
+
+```{r}
+idw_ehce_boundaries_sf_22Jan03 <- idw_ehce_vector_boundaries_22Jan03[""] %>% 
+    st_as_sf() %>% # Convert SpatVector data to 'sf' object
+    st_make_valid() %>% # Resolve potential topological errors
+    st_cast("POLYGON") %>%  # Resolve potential topological errors
+    #st_transform() %>% 
+    #st_cast("MULTIPOLYGON") %>% 
+    mutate(event_type = "ECE") %>%
+    mutate(event_date = as.Date("01-03-2022", "%m-%d-%Y")) %>%
+    mutate(ehce_geo_id = paste0(sprintf("%03d", row_number()))) %>% 
+    
+    mutate(computed_event_area = round(as.numeric(st_area(.)), 0)) %>%
+    mutate(area_hectare = round((computed_event_area / 10000), 1)) 
+
+class(idw_ehce_boundaries_sf_22Jan03)
+glimpse(idw_ehce_boundaries_sf_22Jan03)
+
+```
+
+Read the yearly dataset of pre-computed EHE/ECE boundaries
 
 ```{r}
 daily_vectors_dir <- "../Data/GridEX_S123_T002_daily_vector_dataset_GPKG"
@@ -72,12 +121,12 @@ ehe_ece_boundaries_2022 <- st_read(file.path(daily_vectors_dir, "Y2022_S400_T002
 #View(ehe_ece_boundaries_2022)
 
 #head(ehe_ece_boundaries_2022)
-#ls(ehe_ece_boundaries_2022)
+ls(ehe_ece_boundaries_2022)
 ```
 
 ### Mapping the combination of raster and vector layers for a sample day of ECE
 
-Query and subset the data for a specific day of ECE (Jan 03, 2022)
+Load the pre-computed raster layers, and subset the data for a specific day of ECE (Jan 03, 2022)
 
 ```{r}
 ehe_ece_boundaries_2022_01_03 <- ehe_ece_boundaries_2022 %>% 
@@ -98,6 +147,10 @@ ece_daily_raster_vars_stacks_22Jan03 <- rast(file.path(daily_data_dir, "D2022-01
 plot(ece_daily_raster_vars_stacks_22Jan03)
 ```
 
+```{r}
+plot(ece_daily_raster_vars_stacks_22Jan03["EHCMI_normalized"])
+```
+
 ## Overlay EHE/ECE with administrative boundaries
 
 ```{r}
@@ -105,6 +158,4 @@ plot(ehce_daily_raster_22Jan03)
 #plot(ehe_ece_boundaries_2022_01_03["area_hectare"], col = NA)
 plot(us_counties[2], col = NA, add = T)
 
-#plot(us_counties[2], col = NA)
-#plot(us_states[2], add = T, col = NA)
 ```

@@ -12,18 +12,20 @@ email: pedram_fard\@hms.harvard.edu
 
 ### April 2024, PAA Annual Meeting
 
-## Session 2A - Exploring the GridEX dataset
+## Session 2 - Part A - Exploring the GridEX dataset
 
 Author: Pedram Fard, Researcher at Harvard Medical School\
 email: pedram_fard\@hms.harvard.edu
 
 This session will guide you through the GridEX data set that offers a detailed catalog of extreme heat and cold events, at a high spatio-temporal resolution across the United States,
 
+## Workshop Resources
+
 For this workshop we use a pre-configured RStudio environment hosted on Posit Cloud. This environment is basically a pre-installed set of libraries that help us to work with RStudio right from the browser.
 
 This allows us to jump right into analyzing representative samples of GridEX layers without the need to download the entire dataset or setting up libraries.
 
-Prefer to set up your own environment? The Setup folder contains a notebook listing all the required software and libraries.
+**Prefer to set up your own environment?** The Setup folder contains a notebook listing all the required software and libraries.
 
 ### Exploring curated NOAA sensors data
 
