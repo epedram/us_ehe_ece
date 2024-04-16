@@ -24,9 +24,11 @@ PLACES provides estimates of health measures for counties, cities, neighborhoods
 library(sf)
 library(dplyr)
 library(data.table)
+library(tidyverse)
 
 # workshop_dataset <- "../Data"
 
+# Find filename of csv file with PLACES data
 places_data_dir <- "../Data/PLACES_Dataset"
 list.files(places_data_dir)
 ```
@@ -34,6 +36,7 @@ list.files(places_data_dir)
 ### Load the PLACES data
 
 ```{r}
+# read in the PLACES data as a dataframe
 places_county_2023 <- fread(file.path(places_data_dir, "PLACES__County_Data__GIS_Friendly_Format___2023_release.csv"))
 
 class(places_county_2023)
@@ -44,8 +47,10 @@ head(places_county_2023)
 ### Load and subset the extreme heat events frequency
 
 ```{r}
+# read in data on extreme events
 events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries","C15_S190_T102_events_by_type_by_year_Counties.rds"))
 
+# subset the data on extreme heat events frequency for year 2022
 ehe_counties_ca_2022 <- events_frequency_counties %>% 
   dplyr::filter(event_type == "Extreme Heat Event") %>% 
   dplyr::filter(year_numerical == 2022)
@@ -58,15 +63,18 @@ head(ehe_counties_ca_2022)
 ### Subset the PLACES data for state of California
 
 ```{r}
+# subset the PLACE data for California
 places_county_2023_ca <- places_county_2023 %>% 
   dplyr::filter(StateAbbr == "CA") %>% 
-  mutate(CountyFIPS = paste0("0", as.character(CountyFIPS))) # adjust the GEOID code
+  # adjust the GEOID code for merging
+  mutate(CountyFIPS = paste0("0", as.character(CountyFIPS))) 
 head(places_county_2023_ca)
 ```
 
 ### Join the two dataset
 
 ```{r}
+# Merge the data on extreme heat event frequency for California with the PLACES data
 places_county_2023_ca_augmented <- places_county_2023_ca %>% 
   merge(.,
           ehe_counties_ca_2022,
@@ -79,10 +87,12 @@ str(places_county_2023_ca_augmented)
 ### Explore a correlation between extreme heat events frequency and prevalence of Coronary Heart Disease (CHD)
 
 ```{r}
+# Run a correlation for one health outcome
 cor(places_county_2023_ca_augmented$total_event_days, places_county_2023_ca_augmented$CHD_CrudePrev)
 ```
 
 ```{r}
+# Visualize the association between total days of extreme heat events and CHD prevalence
 ggplot(places_county_2023_ca_augmented, 
        aes(x = total_event_days, 
            y = CHD_CrudePrev)) +
@@ -97,28 +107,33 @@ ggplot(places_county_2023_ca_augmented,
 ### Explore the correlation between extreme heat events frequency and other health outcomes in PLACES
 
 ```{r}
-library(tidyverse)
-
+# Extract column names of unadjusted prevalence of the health outcomes in PLACES 
 health_outcomes_codenames <- colnames(places_county_2023_ca) %>%
   .[grepl("_CrudePrev$", .)== TRUE]
 print(health_outcomes_codenames)
 ```
 
 ```{r}
+# Write a function to run a correlation between a given health outcome and total number of days of extreme heat event
 correlation_ehe_health <- function(x
                                    , df_merged)
 {
+  # Print column name of health outcome
   print(x)
   
+  # Extract column of the prevalence of the health outcome 
   health_outcome_i <- df_merged %>%
     pull(x)
   
+  # Extract column of the total number of days of extreme heat event
   num_days_ehe <- df_merged %>%
     pull(total_event_days)
   
+  # Perform correlation between prevalence of health outcome and frequency of the extreme heat event 
   correlation_i <- cor(health_outcome_i
                        , num_days_ehe)
 
+  # Define a dataframe to output the results
   df_stats_i <- data.frame(health_outcome = x
                            , event_type = "Extreme Heat Event"
                            , correlation = correlation_i)
@@ -127,10 +142,13 @@ correlation_ehe_health <- function(x
 ```
 
 ```{r}
+# define the function call to define a correlation for each health outcome and extreme heat event frequency
 df_correlations <- health_outcomes_codenames %>%
   map(.
-      , correlation_ehe_health
-      , places_county_2023_ca_augmented) %>%
+      , .f = correlation_ehe_health # input of name of function 
+      , df_merged = places_county_2023_ca_augmented # input of the merged dataset
+      ) %>%
   bind_rows()
-View(df_correlations)
+
+#View(df_correlations)
 ```
