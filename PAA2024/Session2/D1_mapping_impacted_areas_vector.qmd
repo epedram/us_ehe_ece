@@ -14,10 +14,7 @@ email: pedram_fard\@hms.harvard.edu
 
 ## Session 2 - Part D - Exploring the cumulative impacts of extreme events
 
-Author: Pedram Fard, Researcher at Harvard Medical School\
-email: pedram_fard\@hms.harvard.edu
-
-In this notebook we work with the vector layers representing the cumulative impacts of extreme heat and cold events (EHE/ECEs) in the US.
+In this notebook we work with the vector layers representing the cumulative impacts of extreme heat and cold events (EHE/ECE) in the US.
 
 For more information see: [Spatio-temporal interpolation and delineation of extreme heat events in California between 2017 and 2021](https://www.sciencedirect.com/science/article/pii/S0013935123017887?dgcid=rss_sd_all)
 
@@ -41,15 +38,63 @@ us_counties <- st_read(file.path(census_data_dir, "tigris_counties_geo_CRS5070.g
 "S190" indicates that we are loading the County level data. "T102" means this file contains aggregate yearly frequency of extreme event days.
 
 ```{r}
-events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries", "C15_S190_T102_events_by_type_by_year_Counties.rds"))
+events_frequency_counties <- readRDS(file.path("../Data/GridEX_C15_T102_by_type_by_year_summaries", "C15_S190_T102_events_by_type_by_year_sf_Counties.rds"))
 
 glimpse(events_frequency_counties)
 
 ```
 
+```{r}
+# Function to create a Leaflet map
+create_leaflet_map <- function(data, event_type = "Extreme Heat Event") {
+  pal <- colorNumeric(
+    palette = if (event_type == "Extreme Heat Event") 
+      c("white", "orange", "red3", "brown4")
+    else 
+      c("white", "cyan4", "blue", "purple4"),
+    domain = data$total_event_days
+  )
+  
+  leaflet(data) %>%
+    setView(lng = -98.5, lat = 39.8, zoom = 4) %>%
+    addProviderTiles(providers$OpenStreetMap) %>%
+    addPolygons(
+      fillColor = ~pal(total_event_days),
+      weight = 1,
+      opacity = 1,
+      color = "#888",
+      dashArray = "3",
+      fillOpacity = 0.7,
+      highlightOptions = highlightOptions(
+        weight = 3,
+        color = "#555",
+        dashArray = "",
+        fillOpacity = 0.8,
+        bringToFront = TRUE
+      ),
+      label = ~paste0("Number of events: ", as.character(total_event_days),
+                      "\n   [FIPS Code: ", as.character(GEOID), "]"),
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto"
+      )
+    ) %>%
+    addLegend("bottomright", pal = pal, values = ~total_event_days,
+              title = "Total Number of Days Impacted by Extreme Events")
+}
+
+filtered_data <- events_frequency_counties %>% 
+                  filter(event_type == "Extreme Heat Event", 
+                         year_numerical == 2022)
+class(filtered_data)
+
+create_leaflet_map(filtered_data, event_type = "Extreme Heat Event")
+```
+
 ## GridEX Shiny app demo
 
-https://ehce.connect.hms.harvard.edu/us_ehe_ece/
+<https://ehce.connect.hms.harvard.edu/us_ehe_ece>
 
-I)  Explore extreme events dynamics and aggregate impacts
-II) Explore extreme events aggregate impacts
+I)  Explore extreme events dynamics daily impacts
+II) Explore extreme events aggregate yearly impacts

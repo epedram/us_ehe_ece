@@ -1,24 +1,23 @@
 ---
 title: "PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX"
-subtitle: "Exploring the cumulative impacts of extreme events"
-author: "Pedram Fard"
+subtitle: "Hands-on exercise - Exploring the cumulative impacts of extreme heat events"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
 
 format: html
 editor: visual
 ---
 
+email: pedram_fard\@hms.harvard.edu
+
 ## PAA2024 - Extreme Heat and Cold Events Exposure Assessment with GridEX
 
 April 2024, PAA Annual Meeting
 
-### Session 2D - Exploring the cumulative impacts of extreme events
+### Session 4 - Hands-on exercise - Exploring the cumulative impacts of extreme events
 
-Author: Pedram Fard, Researcher at Harvard Medical School\
-email: pedram_fard\@hms.harvard.edu
+In this notebook we work with the raster layers representing the cumulative impacts of extreme heat events (EHEs) in the US.
 
-In this notebook we work with the raster layers representing the cumulative impacts of extreme heat and cold events (EHE/ECEs) in the US.
-
-For more information see: [Spatio-temporal interpolation and delineation of extreme heat events in California between 2017 and 2021](https://www.sciencedirect.com/science/article/pii/S0013935123017887?dgcid=rss_sd_all)
 
 ```{r, message=TRUE, warning=FALSE, error=TRUE}
 library(sf)
