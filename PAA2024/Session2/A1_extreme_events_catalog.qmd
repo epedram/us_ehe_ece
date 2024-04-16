@@ -14,18 +14,17 @@ email: pedram_fard\@hms.harvard.edu
 
 ## Session 2 - Part A - Exploring the GridEX dataset
 
-Author: Pedram Fard, Researcher at Harvard Medical School\
-email: pedram_fard\@hms.harvard.edu
+GridEX provides the catalog of extreme heat and cold events (EHE/ECE), at a high spatio-temporal resolution across the United States. In this session, we will navigate through the features and data layers contained within the GridEX dataset.
 
-This session will guide you through the GridEX data set that offers a detailed catalog of extreme heat and cold events, at a high spatio-temporal resolution across the United States,
-
-## Workshop Resources
+### Workshop Resources
 
 For this workshop we use a pre-configured RStudio environment hosted on Posit Cloud. This environment is basically a pre-installed set of libraries that help us to work with RStudio right from the browser.
 
-This allows us to jump right into analyzing representative samples of GridEX layers without the need to download the entire dataset or setting up libraries.
+This allows us to jump right into analyzing a representative sample of GridEX layers without the need to download the entire dataset or setting up libraries.
 
-**Prefer to set up your own environment?** The Setup folder contains a notebook listing all the required software and libraries.
+The latest notebooks can always be accessed from the project repo at: [GitHub](https://github.com/epedram/us_ehe_ece/tree/main/PAA2024)
+
+[Dataverse](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DJGKDJ)
 
 ### Exploring curated NOAA sensors data
 
@@ -52,11 +51,9 @@ GridEX dataset provides a catalog of extreme heat and cold events in multiple sp
 
 To simplify data identification and organization, we've implemented a specific naming convention. This convention uses a three-digit code prefixed with "S" to denote the spatial scale, followed by another three-digit code prefixed with "T" to indicate the temporal scale.
 
-For a detailed reference of GridEX naming convention and their corresponding spatial and temporal scales, please check out this worksheet: [GridEX Naming Convention](https://docs.ghttps://docs.google.com/spreadsheets/d/1SWrflS3zi_ZPSobYhfe4LvvVgeQ3DJOW5tFHT9AQjeA/edit#gid=0 "GridEX Naming Convention")
+For a detailed reference of GridEX naming codes and their corresponding spatial and temporal scales, please check out ***GridEX Naming Convention*** under the ***Resources*** folder.
 
-### Explore the catalog of sensors from the NOAA's Integrated Surface Dataset (NOAA ISD):
-
-https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00532
+### Explore the catalog of sensors from the NOAA's Integrated Surface Dataset ([NOAA ISD](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00532))
 
 ```{r}
 data_dir <- "../Data/NOAA_sensors_dataset"
@@ -103,10 +100,12 @@ class(noaa_daily_imputed_ca)
 ```
 
 ```{r}
-number_of_stations_in_california <- length(unique(noaa_daily_imputed_ca$station_id))
-number_of_stations_in_california
+#ls(noaa_daily_imputed_ca)
+dim(noaa_daily_imputed_ca) # 700k records
 
-dim(noaa_daily_imputed_ca)
+number_of_stations_in_california <- length(unique(noaa_daily_imputed_ca$station_id))
+number_of_stations_in_california # 148 stations
+cat("Number of stations:",  number_of_stations_in_california)
 
 number_of_days <- length(unique(noaa_daily_imputed_ca$YYYY_MM_DD))
 cat("Number of days:",  number_of_days)

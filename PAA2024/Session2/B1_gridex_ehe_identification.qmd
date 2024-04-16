@@ -14,9 +14,6 @@ email: pedram_fard\@hms.harvard.edu
 
 ## Session 2 - Part B - Exploring the extreme events intensity
 
-Author: Pedram Fard, Researcher at Harvard Medical School\
-email: pedram_fard\@hms.harvard.edu
-
 Here we start with retrieving the actual gridded layers of EHE/ECE covering the continental United States. You'll then work with the stacked and cumulative layers presenting different temporal scales of extreme events.
 
 For a detailed reference of GridEX naming convention and their corresponding spatial and temporal scales, please check out this worksheet: [GridEX Naming Convention](https://docs.ghttps://docs.google.com/spreadsheets/d/1SWrflS3zi_ZPSobYhfe4LvvVgeQ3DJOW5tFHT9AQjeA/edit#gid=0 "GridEX Naming Convention").
@@ -103,7 +100,7 @@ names(ece_daily_stack_2022)
 plot(ece_daily_stack_2022)
 ```
 
-### Navigating the stacked layers
+We can then choose a particular layer from the stack of raster layers.
 
 ```{r}
 plot(ece_daily_stack_2022$`2022-01-07`)
