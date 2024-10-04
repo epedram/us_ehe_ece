@@ -7,9 +7,6 @@ source(here::here("runtime_setup",
 source(here::here("runtime_setup",
                   "2_plotting_functions.R"), local = T)
 
-# // *0 [settings] O2 / Year ====
-start_year <-  2008L
-end_year <-  2022L
 
 gc()
 
@@ -49,10 +46,18 @@ fx_toc(validation_results_disaggregate_tb, 1, time_period, i)
 log_debug(paste0("(Sample ", i, ") Computing aggregated stats started"))
 tryCatch({
 selected_fields <- c(
-  "temperature_avg",
-  "temperature_avg_62_idw",
-  "temperature_avg_nn_idw",
-  "temperature_avg_gridmet",
+  "d_temperature_avg",
+  "d_temperature_min",
+  "d_temperature_max",
+  
+  "d_temperature_avg_idw",
+  "d_temperature_min_idw",
+  "d_temperature_max_idw",
+  "d_temperature_avg_nn_idw",
+  
+  "gridmet_avg_t",
+  "gridmet_min_t",
+  "gridmet_max_t",
   
   "Abs_Residuals_IDW",
   "Abs_Residuals_NN",
@@ -64,8 +69,8 @@ selected_fields <- c(
 
 tic()
 validation_results_tb <- validation_results_disaggregate_tb %>% st_drop_geometry() %>% 
-  filter_at(vars(selected_fields[1:4]), all_vars(!is.infinite(.))) %>%
-  filter_at(vars(selected_fields[1:4]), all_vars(!is.na(.)))
+  filter_at(vars(selected_fields[1:10]), all_vars(!is.infinite(.))) %>%
+  filter_at(vars(selected_fields[1:10]), all_vars(!is.na(.)))
 fx_toc(validation_results_tb, 1, time_period, i)
   
 ls(validation_results_tb)
@@ -216,30 +221,6 @@ fx_saveRObjects(
   suffix = paste0("_sample_", i),
   output_path = sample_output_path)
 
-fx_reportFieldsPar(
-  validation_results_disaggregate_tb,
-  validation_results_all_aggstats,
-  
-  validation_results_y_aggstats,
-  validation_results_m_aggstats,
-  validation_results_sn_aggstats,
-  validation_results_s_aggstats,
-  validation_results_c_aggstats,
-  
-  validation_results_yc_aggstats,
-  validation_results_sc_aggstats,
-  validation_results_ys_aggstats,
-  validation_results_ms_aggregate,
-  validation_results_mc_aggregate,
-  validation_results_ysn_aggstats,
-  validation_results_sns_aggstats,
-  
-  validation_results_st_aggstats,
-  
-  prefix = time_period,
-  suffix = paste0("_sample_", i),
-  output_path = sample_output_path)
-
   log_success("Aggregation stats completed")
 }, error = function(e){
   log_warn("Aggregation stats failed")
@@ -259,9 +240,6 @@ validation_results_long_table <- pivot_longer(validation_compiled_test20_delta,
          month_name = lubridate::month(format(YYYY_MM_DD, "%Y-%m-%d"), label = TRUE))
 fx_toc(validation_results_long_table, 1, time_period, i)
 
-#rm(validation_compiled_test20_delta)
-
-#ls(validation_results_long_table)
 ## Boxplots ----
 tryCatch({
   map("Overall", ~ {
@@ -326,10 +304,13 @@ tryCatch({
 
 
 variables_to_plot <- c(
-                       "temperature_avg_62_idw",
-                       "temperature_avg_nn_idw",
-                       "temperature_avg_gridmet",
-                       "temperature_avg")
+                       "d_temperature_avg",
+                       "d_temperature_avg_idw",
+                       "d_temperature_avg_nn_idw",
+                       "gridmet_avg_t",
+                       "gridmet_min_t",
+                       "gridmet_max_t"
+                       )
 
 ## Scatterplots ----
 tryCatch({
@@ -343,7 +324,7 @@ map(variables_to_plot, ~ {
       category_df <- validation_results_long_table
       print(.x)
       print(dim(category_df))
-      fx_r2_plot(category_df, "temperature_avg", variable,
+      fx_r2_plot(category_df, "d_temperature_avg", variable,
                  "Aggregation",
                  .x, i, plots_output_path)
     })
@@ -352,7 +333,7 @@ map(variables_to_plot, ~ {
       category_df <- validation_results_long_table %>% dplyr::filter(month_number == .x)
       print(.x)
       print(dim(category_df))
-      fx_r2_plot(category_df, "temperature_avg", variable,
+      fx_r2_plot(category_df, "d_temperature_avg", variable,
                  "Month",
                  .x, i, plots_output_path)
     })
@@ -361,7 +342,7 @@ map(variables_to_plot, ~ {
       category_df <- validation_results_long_table %>% dplyr::filter(YYYY == .x)
       print(.x)
       print(dim(category_df))
-      fx_r2_plot(category_df, "temperature_avg", variable,
+      fx_r2_plot(category_df, "d_temperature_avg", variable,
                  "Year",
                  .x, i, plots_output_path)
     })
@@ -373,5 +354,55 @@ map(variables_to_plot, ~ {
   log_error(conditionMessage(e))
 })
 
+## Scatterplots (2)----
+tryCatch({
+
+  # map("Overall", ~ {
+  #   category_df <- validation_results_long_table
+  #   print(.x)
+  #   print(dim(category_df))
+  #   fx_r2_plot(category_df, "temperature_avg", "temperature_avg_gridmet",
+  #              "Aggregation",
+  #              .x, i, plots_output_path)
+  # })
+  
+  # # Use purrr::map to iterate over both years and variables
+  map(variables_to_plot, ~ {
+    variable <- .x
+    print(variable)
+    
+    map("Overall", ~ {
+      category_df <- validation_results_long_table
+      print(.x)
+      print(dim(category_df))
+      fx_r2_plot2(category_df, "d_temperature_avg", variable,
+                 "Aggregation",
+                 .x, i, plots_output_path)
+    })
+    
+    map(1:12, ~ {
+      category_df <- validation_results_long_table %>% dplyr::filter(month_number == .x)
+      print(.x)
+      print(dim(category_df))
+      fx_r2_plot2(category_df, "d_temperature_avg", variable,
+                 "Month",
+                 .x, i, plots_output_path)
+    })
+    
+    map(end_year:start_year, ~ {
+      category_df <- validation_results_long_table %>% dplyr::filter(YYYY == .x)
+      print(.x)
+      print(dim(category_df))
+      fx_r2_plot2(category_df, "d_temperature_avg", variable,
+                 "Year",
+                 .x, i, plots_output_path)
+    })
+    
+  })
+  log_success("Scatterplots 2 completed")
+}, error = function(e){
+  log_warn("Scatterplot 2")
+  log_error(conditionMessage(e))
+})
 
 log_success(paste0("(Sample ", i, ") Data processing completed!"))
