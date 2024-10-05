@@ -1,7 +1,23 @@
-# Latest update Jan 2024
-
+# Latest update Oct 2024
 ## ---- R helper functions
-# helper functions
+
+fx_log_mem <- function(option_code = 0) {
+  if(option_code == 0) {
+    log_debug(paste0("Free memory available: ", format(as.numeric(system("vmstat -s | grep 'free memory' | awk '{print $1}'", intern = TRUE)), big.mark = ","), "\n"))
+  }
+  bitcodes <- fx_bitcodes(option_code)
+  print(bitcodes)
+  if("1" %in% bitcodes) {
+    log_info(paste0("Total memory available: ", format(as.numeric(system("vmstat -s | grep 'total memory' | awk '{print $1}'", intern = TRUE)), big.mark = ","), "\n"))
+  } 
+  if("2" %in% bitcodes) {
+    log_info(paste0("Free memory available: ", format(as.numeric(system("vmstat -s | grep 'free memory' | awk '{print $1}'", intern = TRUE)), big.mark = ","), "\n"))
+  } 
+  if("4" %in% bitcodes) {
+    log_info(paste0("Number of physical cores: ", parallel::detectCores(logical = FALSE), "\n"))
+    log_info(paste0("Number of available threads: ", as.numeric(system("nproc", intern = TRUE)), "\n"))
+  }
+}
 
 # f(x): 2022-10 - Print the project I/O set up
 fx_io <- function()
@@ -9,7 +25,6 @@ fx_io <- function()
   cat("I/O Directories:", "\n")
   cat("Data source folder:", "\n")
   print(source_dir)
-
 
   cat("\n", "Reporting folders:", "\n")
   #print(param_path)
@@ -91,7 +106,8 @@ fx_info <- function(x) {
 fx_toc <- function(x, switch = 1L,
                    comment1 = "comment_1", 
                    comment2 = "comment_2",
-                   output_path = rds_output_path) {
+                   output_path = rds_output_path,
+                   slicer = time_period) {
   
   name <- substitute(x)
   
@@ -149,8 +165,12 @@ fx_toc <- function(x, switch = 1L,
     file_size <- scales::label_bytes()(filesize)
     storing_time <- toc(quiet = TRUE)$callback_msg
     
+  } else { 
+    
+    file_size <- 0
+    storing_time <- 0
     #if ("raster" %in% tolower(classNames) | "spatial" %in% tolower(classNames)) {
-      if (any(sapply(c("Raster", "Spat", "star"),  
+      if (any(sapply(c("Raster", "SpatRaster", "star"),  
                        function(keyword) grepl(keyword, class(x), ignore.case = TRUE)))) {
           # dev a function to report spatial objects info()
         } else { 
@@ -736,6 +756,24 @@ fx_saveRObjects <- function(...,
 }
 
 
+fx_saveParq <- function(...,
+                        prefix = "", suffix = "",
+                        output_path = output_path) {
+  objects <- list(...)
+  object_names <- sapply(substitute(list(...))[-1], deparse)
+  
+  sapply(1:length(objects), function(i) {
+    filename = file.path(output_path = output_path,
+                         paste0(prefix, "_",
+                                object_names[i], "_",
+                                suffix,
+                                ".parquet"))
+    
+    arrow::write_parquet(objects[[i]], filename)
+  })#
+}
+
+
 # Save each object given as a parameter // To develop // ----
 fx_store_objects <- function(...,
                            prefix = "", suffix = "",
@@ -798,16 +836,50 @@ fx_savePlots <- function(
 }
 
 
+fx_bitcodes <- function(x) {
+  # Check if x is not an integer or if it's negative
+  if (x %% 1 != 0 || x < 0) {
+    return(as.character(NA))
+  }
+  
+  # Convert x to binary bits and then to numeric vector
+  bits <- as.numeric(intToBits(x))
+  
+  # Create a vector of exponents for powers of 2
+  exponent <- 2^(0:31)
+  
+  # Calculate the product of the bits and their corresponding powers of 2
+  product <- bits * exponent
+  
+  # Extract the non-zero elements from the product
+  non_zero_items <- product[product != 0]
+  
+  # Convert the non-zero elements to a character vector
+  non_zero_items_char <- as.character(non_zero_items)
+  
+  # Print the input and output codes
+  #cat("Input code: ", x, "\n")
+  #cat("Output code: ", non_zero_items_char, "\n")
+  
+  # Return the non-zero elements as a character vector
+  return(non_zero_items_char)
+}
+
+
+# older version
 bitcodes <- function(x) {
   if (x %% 1 != 0) {
     return(NA_real_)
   }
   
   bits <- as.numeric(intToBits(x))
-  exponent <- (2^(0:16))
+  exponent <- (2^(0:31))
   product <- bits * exponent
   
   non_zero_items <- product[product != 0]
+  
+  print(cat("Input code: ", x))
+  print(cat("Output code: ", non_zero_items))
   return(non_zero_items)
 }
 
@@ -837,40 +909,52 @@ fx_validation_summary_stats <- function(df = df,
   summary_stats_df <- df %>%
     dplyr::summarise(n_records = n(),
                      n_stations = n_distinct(station_id),
-                     ccoefficient_idw = round(cor(temperature_avg, temperature_avg_62_idw, 
+                     ccoefficient_idw = round(cor(d_temperature_avg, d_temperature_avg_idw, 
                                                   use = "complete.obs"), 3),
-                     ccoefficient_nn = round(cor(temperature_avg, temperature_avg_nn_idw, 
+                     ccoefficient_nn = round(cor(d_temperature_avg, d_temperature_avg_nn_idw, 
                                                  use = "complete.obs"), 3),
-                     ccoefficient_gm = round(cor(temperature_avg, temperature_avg_gridmet, 
+                     ccoefficient_gm = round(cor(d_temperature_avg, gridmet_avg_t, 
                                                  use = "complete.obs"), 3),
                      
-                     #p_value_idw_noaa = round(t.test(temperature_avg, temperature_avg_62_idw)$p.value, 5),
+                     #p_value_idw_noaa = round(t.test(temperature_avg, temperature_avg_idw)$p.value, 5),
                      #p_value_nn_noaa = round(t.test(temperature_avg, temperature_avg_nn_idw)$p.value, 5),
                      #p_value_gm_noaa = round(t.test(temperature_avg, temperature_avg_gridmet)$p.value, 5),
                      
-                     p_value_idw_nn = round(t.test(temperature_avg_62_idw, temperature_avg_nn_idw)$p.value, 5),
-                     p_value_idw_gm = round(t.test(temperature_avg_62_idw, temperature_avg_gridmet)$p.value, 5),
-                     p_value_gm_nn = round(t.test(temperature_avg_gridmet, temperature_avg_nn_idw)$p.value, 5),
+                     p_value_idw_nn = round(t.test(d_temperature_avg_idw, d_temperature_avg_nn_idw)$p.value, 5),
+                     p_value_idw_gm = round(t.test(d_temperature_avg_idw, gridmet_avg_t)$p.value, 5),
+                     p_value_gm_nn = round(t.test(gridmet_avg_t, d_temperature_avg_nn_idw)$p.value, 5),
 
-                     r2_idw = round(cor(temperature_avg, temperature_avg_62_idw, use = "complete.obs")^2, 3),
-                     r2_nn = round(cor(temperature_avg, temperature_avg_nn_idw, use = "complete.obs")^2, 3),
-                     r2_gm = round(cor(temperature_avg, temperature_avg_gridmet, use = "complete.obs")^2, 3),
+                     r2_idw = round(cor(d_temperature_avg, d_temperature_avg_idw, use = "complete.obs")^2, 3),
+                     r2_nn = round(cor(d_temperature_avg, d_temperature_avg_nn_idw, use = "complete.obs")^2, 3),
+                     r2_gm = round(cor(d_temperature_avg, gridmet_avg_t, use = "complete.obs")^2, 3),
+                     r2_idw_min = round(cor(d_temperature_min, d_temperature_min_idw, use = "complete.obs")^2, 3),
+                     r2_nn_min = round(cor(d_temperature_min, d_temperature_min_nn_idw, use = "complete.obs")^2, 3),
+                     r2_gm_min = round(cor(d_temperature_min, gridmet_min_t, use = "complete.obs")^2, 3),
+                     r2_idw_max = round(cor(d_temperature_max, d_temperature_max_idw, use = "complete.obs")^2, 3),
+                     r2_nn_max = round(cor(d_temperature_max, d_temperature_max_nn_idw, use = "complete.obs")^2, 3),
+                     r2_gm_max = round(cor(d_temperature_max, gridmet_max_t, use = "complete.obs")^2, 3),
                      
                      improved_R2_idw_over_nn = round(r2_idw - r2_nn, 3),
                      improved_R2_idw_over_gm = round(r2_idw - r2_gm, 3),
                      improved_R2_gm_over_nn = round(r2_gm - r2_nn, 3),
-
+                     
+                     improved_R2_idw_min_over_nn = round(r2_idw_min - r2_nn_min, 3),
+                     improved_R2_idw_min_over_gm = round(r2_idw_min - r2_gm_min, 3),
+                     improved_R2_gm_min_over_nn = round(r2_gm_min - r2_nn_min, 3),
+                     
+                     improved_R2_idw_max_over_nn = round(r2_idw_max - r2_nn_max, 3),
+                     improved_R2_idw_max_over_gm = round(r2_idw_max - r2_gm_max, 3),
+                     improved_R2_gm_max_over_nn = round(r2_gm_max - r2_nn_max, 3),
+                     
                      across(all_of(selected_fields),
                             list(
                               mean = ~round(mean(., na.rm = TRUE), 2),
                               sd = ~round(sd(., na.rm = TRUE), 2),
                               var = ~round(var(., na.rm = TRUE), 2),
                               median = ~round(median(., na.rm = TRUE), 2),
+                              min = ~round(min(., na.rm = TRUE), 2),
                               max = ~round(max(., na.rm = TRUE), 2)
-                              #min = ~round(min(., na.rm = TRUE), 2),
-
-                            ),
-                            .names = "{fn}__{col}")) %>%
+                            ), .names = "{fn}__{col}")) %>%
     mutate(sample = i) %>% 
     
     # mutate(Improved_by_IDW_over_NN =
@@ -882,9 +966,9 @@ fx_validation_summary_stats <- function(df = df,
            RMSE_NN = round(sqrt(mean__SquaredError_NN), 3),
            RMSE_GM = round(sqrt(mean__SquaredError_GM), 3)) %>% 
     
-    mutate(R2_IDW = round(1 - (RMSE_IDW^2 / var__temperature_avg), 3),
-           R2_NN = round(1 - (RMSE_NN^2 / var__temperature_avg), 3),
-           R2_GM = round(1 - (RMSE_GM^2 / var__temperature_avg), 3)) %>% 
+    mutate(R2_IDW = round(1 - (RMSE_IDW^2 / var__d_temperature_avg), 3),
+           R2_NN = round(1 - (RMSE_NN^2 / var__d_temperature_avg), 3),
+           R2_GM = round(1 - (RMSE_GM^2 / var__d_temperature_avg), 3)) %>% 
 
     mutate(R2_Improved_by_IDW_over_NN = round(R2_IDW - R2_NN, 3),
            R2_Improved_by_IDW_over_GM = round(R2_IDW - R2_GM, 3),
@@ -990,7 +1074,8 @@ fx_validation_summary_stats <- function(df = df,
 
 
 events_summary_stats <- function(data, group_vars, summary_vars, 
-                                 params, rnd = 1) {
+                                 params, rnd = 1,
+                                 tables_output_path = ptables_output_path) {
   summary_df <- data %>%
     group_by(across(all_of(group_vars))) %>%
     
@@ -1050,23 +1135,27 @@ fx_varSum <- function(df,
                  
                  funs(
                    n = n(),
-                   median = round(median(.,na.rm = TRUE), 2),
-                   mean = round(mean(.,na.rm = TRUE), 2),
-                   sd = round(sd(.,na.rm = TRUE), 2),
-                   .sum = round(mean(.,na.rm = TRUE), 2),
-                   min = round(min(.,na.rm = TRUE), 2),
-                   max = round(max(.,na.rm = TRUE), 2),
-                   Q1st = round(quantile(., probs = .25, na.rm = TRUE), 2),
-                   Q3rd = round(quantile(., probs = .75, na.rm = TRUE), 2),
+                   median = round(median(.,na.rm = TRUE), 3),
+                   mean = round(mean(.,na.rm = TRUE), 3),
+                   sd = round(sd(.,na.rm = TRUE), 3),
+                   .sum = round(mean(.,na.rm = TRUE), 3),
+                   min = round(min(.,na.rm = TRUE), 3),
+                   max = round(max(.,na.rm = TRUE), 3),
+                   Q1st = round(quantile(., probs = .25, na.rm = TRUE), 3),
+                   Q3rd = round(quantile(., probs = .75, na.rm = TRUE), 3),
+                   IQR = round(quantile(., probs = .75, na.rm = TRUE) - 
+                                 quantile(., probs = .25, na.rm = TRUE),
+                               3),
+                   Prcntile1 = round(quantile(., probs = .01, na.rm = TRUE), 3),
+                   Prcntile5 = round(quantile(., probs = .05, na.rm = TRUE), 3),
+                   Prcntile10 = round(quantile(., probs = .10, na.rm = TRUE), 3),
                    Prcntile15 = round(quantile(., probs = .15, na.rm = TRUE), 3),
-                   Prcntile25 = round(quantile(., probs = .25, na.rm = TRUE), 3),
-                   Prcntile35 = round(quantile(., probs = .35, na.rm = TRUE), 3),
-                   Prcntile45 = round(quantile(., probs = .45, na.rm = TRUE), 3),
-                   Prcntile55 = round(quantile(., probs = .55, na.rm = TRUE), 3),
-                   Prcntile65 = round(quantile(., probs = .65, na.rm = TRUE), 3),
-                   Prcntile75 = round(quantile(., probs = .75, na.rm = TRUE), 3),
+                   Prcntile20 = round(quantile(., probs = .20, na.rm = TRUE), 3),
+                   Prcntile80 = round(quantile(., probs = .80, na.rm = TRUE), 3),
                    Prcntile85 = round(quantile(., probs = .85, na.rm = TRUE), 3),
-                   Prcntile95 = round(quantile(., probs = .95, na.rm = TRUE), 3)
+                   Prcntile90 = round(quantile(., probs = .90, na.rm = TRUE), 3),
+                   Prcntile95 = round(quantile(., probs = .95, na.rm = TRUE), 3),
+                   Prcntile99 = round(quantile(., probs = .99, na.rm = TRUE), 3)
                  )
     ) %>%
     mutate(nrow = n()) # %>%
@@ -1088,6 +1177,3 @@ fx_fxView <- function(pat="fx_")
 cat("\n", "List start up objects:", "\n")
 fx_list <- ls(pat = "fx_")
 print(fx_list)
-
-
-
