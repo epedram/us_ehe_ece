@@ -1,0 +1,643 @@
+---
+title: "Extreme Heat and Cold Events Exposure Assessment with GridEX"
+subtitle: "Identifying vulnerable communities that experience extreme weather but lack adequate climate control resources in California"
+author: "Pedram Fard, Researcher at Harvard Medical School"
+email: pedram_fard@hms.harvard.edu
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+```
+
+## Overview
+This analysis examines the intersection of extreme weather events (Extreme Cold Events - ECE and Extreme Heat Events - EHE) with housing infrastructure access to heating and cooling resources in California census tracts. The goal is to identify vulnerable communities that experience extreme weather but lack adequate climate control resources.
+
+
+## Setup and Data Loading
+
+```{r libraries}
+# Load required libraries
+library(tidycensus)
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(knitr)
+library(DT)
+library(plotly)
+library(purrr)
+library(tidyr)
+library(viridis)
+library(scales)
+library(RColorBrewer)
+
+```
+
+## Census Data Collection
+
+```{r census-variables}
+# Define heating and cooling variables from Census ACS
+heating_cooling_vars <- c(
+  # House heating fuel (Table B25040)
+  "B25040_001",  # Total occupied housing units
+  "B25040_002",  # Utility gas
+  "B25040_003",  # Bottled, tank, or LP gas
+  "B25040_004",  # Electricity
+  "B25040_005",  # Fuel oil, kerosene, etc.
+  "B25040_006",  # Coal or coke
+  "B25040_007",  # Wood
+  "B25040_008",  # Solar energy
+  "B25040_009",  # Other fuel
+  "B25040_010",  # No fuel used
+  
+  # Air conditioning (Table B25045)
+  "B25045_001",  # Total occupied housing units (for AC)
+  "B25045_002",  # With air conditioning
+  "B25045_003"   # No air conditioning
+)
+
+# Function to get Census data for multiple states
+get_census_data_for_states <- function(states, year = 2014) {
+  map_dfr(states, function(state) {
+    tryCatch({
+      cat("Downloading data for state:", state, "\n")
+      get_acs(
+        geography = "tract",
+        variables = heating_cooling_vars,
+        state = state,
+        year = year,
+        survey = "acs5",
+        geometry = FALSE,
+        output = "wide"
+      )
+    }, error = function(e) {
+      message(paste("Error downloading data for state", state, ":", e$message))
+      return(NULL)
+    })
+  })
+}
+```
+
+
+```{r download-census-data}
+california_state_code <- "06"  # California FIPS code
+census_heating_cooling <- get_census_data_for_states(california_state_code, year = 2014)
+cat("Downloaded Census data for", nrow(census_heating_cooling), "census tracts\n")
+```
+
+## Data Processing and Cleaning
+
+```{r clean-census-data}
+# Clean and process Census data
+census_clean <- census_heating_cooling %>%
+  rename(
+    total_housing_heating = B25040_001E,
+    heating_utility_gas = B25040_002E,
+    heating_bottled_gas = B25040_003E,
+    heating_electricity = B25040_004E,
+    heating_fuel_oil = B25040_005E,
+    heating_coal = B25040_006E,
+    heating_wood = B25040_007E,
+    heating_solar = B25040_008E,
+    heating_other = B25040_009E,
+    heating_no_fuel = B25040_010E,
+    total_housing_ac = B25045_001E,
+    with_air_conditioning = B25045_002E,
+    no_air_conditioning = B25045_003E
+  ) %>%
+  mutate(
+    # Replace NA values with 0 for calculations
+    across(starts_with("heating_"), ~ifelse(is.na(.x), 0, .x)),
+    across(c(with_air_conditioning, no_air_conditioning), ~ifelse(is.na(.x), 0, .x)),
+    
+    # Calculate percentages and identify lack of resources
+    pct_no_heating = ifelse(total_housing_heating > 0, 
+                           (heating_no_fuel / total_housing_heating) * 100, 0),
+    pct_no_ac = ifelse(total_housing_ac > 0, 
+                      (no_air_conditioning / total_housing_ac) * 100, 0),
+    
+    # Define vulnerability thresholds (adjustable)
+    lacks_heating = heating_no_fuel > 0.1,
+    lacks_cooling = pct_no_ac > 0.1,
+    
+    
+    total_with_heating = total_housing_heating - heating_no_fuel,
+    pct_with_heating = ifelse(total_housing_heating > 0,
+                             (total_with_heating / total_housing_heating) * 100, 0),
+    
+    # Primary heating source categories
+    primary_heating_gas = heating_utility_gas + heating_bottled_gas,
+    primary_heating_electric = heating_electricity,
+    primary_heating_alternative = heating_wood + heating_coal + heating_solar + heating_other
+  ) %>%
+  select(GEOID, NAME, total_housing_heating, total_housing_ac,
+         heating_utility_gas, heating_electricity, heating_wood, heating_no_fuel,
+         primary_heating_gas, primary_heating_electric, primary_heating_alternative,
+         with_air_conditioning, no_air_conditioning,
+         pct_no_heating, pct_no_ac, pct_with_heating,
+         lacks_heating, lacks_cooling)
+
+cat("Processed", nrow(census_clean), "census tracts with heating/cooling data\n")
+```
+# Join with the GridEX data
+```{r join-data}
+# Filter climate data for California and join with Census data
+Y2014_S201_T002_impacted_area_variables_intensity_tracts <- readRDS(url("https://dataverse.harvard.edu/api/access/datafile/10590009"))
+
+california_climate <- Y2014_S201_T002_impacted_area_variables_intensity_tracts %>%
+  filter(substr(GEOID, 1, 2) == "06") %>% 
+  mutate(
+    # Clean event type classification
+    event_type_clean = case_when(
+      grepl("Cold", event_type, ignore.case = TRUE) ~ "ECE",
+      grepl("Heat", event_type, ignore.case = TRUE) ~ "EHE",
+      TRUE ~ as.character(event_type)
+    )
+  )
+
+glimpse(california_climate)
+#View(california_climate)
+
+# Join climate data with Census data
+combined_data <- california_climate %>%
+  inner_join(census_clean, by = "GEOID") %>%
+  mutate(
+    has_ece = event_type_clean == "ECE",
+    has_ehe = event_type_clean == "EHE",
+    
+    # Create vulnerability flags
+    cold_vulnerable = has_ece & lacks_heating,
+    heat_vulnerable = has_ehe & lacks_cooling,
+    
+    # Overall vulnerability
+    climate_vulnerable = cold_vulnerable | heat_vulnerable,
+    
+    # Extract county from NAME for grouping
+    #county = gsub(".*,\\s*(.*)\\s*County.*", "\\1", NAME.y)
+    county = trimws(gsub(".*,\\s*(.*)\\s*County.*", "\\1", NAME.y))
+  )
+
+glimpse(combined_data)
+#View(combined_data)
+
+cat("Successfully joined data for", nrow(combined_data), "California census tracts\n")
+```
+
+## Get Additional Geographic Data for Mapping
+
+```{r get-geography}
+# Get California census tract geometry
+ca_tracts_geo <- get_acs(
+  geography = "tract",
+  variables = "B01003_001",  # Total population for reference
+  state = "06",  
+  year = 2014,
+  survey = "acs5",
+  geometry = TRUE
+) %>%
+  select(GEOID, geometry)
+
+# Get California county boundaries for reference
+ca_counties_geo <- get_acs(
+  geography = "county",
+  variables = "B01003_001",
+  state = "06",
+  year = 2014,
+  survey = "acs5",
+  geometry = TRUE
+) %>%
+  select(GEOID, NAME, geometry)
+
+cat("Downloaded geographic data for", nrow(ca_tracts_geo), "census tracts\n")
+cat("Downloaded geographic data for", nrow(ca_counties_geo), "counties\n")
+```
+
+```{r create-spatial-data}
+# Join geographic data with vulnerability analysis
+vulnerability_map_data <- ca_tracts_geo %>%
+  left_join(combined_data, by = "GEOID") %>%
+  mutate(
+    # Create vulnerability categories for mapping
+    vulnerability_category = case_when(
+      cold_vulnerable & heat_vulnerable ~ "Both Cold & Heat Vulnerable",
+      cold_vulnerable ~ "Cold Vulnerable",
+      heat_vulnerable ~ "Heat Vulnerable",
+      has_ece | has_ehe ~ "Has Extreme Events (Not Vulnerable)",
+      TRUE ~ "No Extreme Events"
+    ),
+    
+    # Create numeric vulnerability score for continuous mapping
+    vulnerability_score = case_when(
+      cold_vulnerable & heat_vulnerable ~ 3,
+      cold_vulnerable | heat_vulnerable ~ 2,
+      has_ece | has_ehe ~ 1,
+      TRUE ~ 0
+    ),
+    
+    # Calculate combined vulnerability percentage
+    combined_vulnerability_pct = case_when(
+      cold_vulnerable ~ pct_no_heating,
+      heat_vulnerable ~ pct_no_ac,
+      cold_vulnerable & heat_vulnerable ~ (pct_no_heating + pct_no_ac) / 2,
+      TRUE ~ 0
+    )
+  )
+
+# Filter to only tracts with data
+vulnerability_map_data <- vulnerability_map_data %>%
+  filter(!is.na(event_type_clean))
+
+cat("Created spatial data for", nrow(vulnerability_map_data), "census tracts with vulnerability data\n")
+```
+
+## Vulnerability Analysis
+
+### Summary Statistics
+
+```{r vulnerability-summary}
+# Overall vulnerability summary
+vulnerability_summary <- combined_data %>%
+  summarise(
+    total_tracts = n(),
+    tracts_with_ece = sum(has_ece, na.rm = TRUE),
+    tracts_with_ehe = sum(has_ehe, na.rm = TRUE),
+    ece_lacking_heating = sum(cold_vulnerable, na.rm = TRUE),
+    ehe_lacking_cooling = sum(heat_vulnerable, na.rm = TRUE),
+    total_vulnerable = sum(climate_vulnerable, na.rm = TRUE),
+    avg_pct_no_heating = round(mean(pct_no_heating, na.rm = TRUE), 2),
+    avg_pct_no_ac = round(mean(pct_no_ac, na.rm = TRUE), 2),
+    .groups = 'drop'
+  )
+
+kable(vulnerability_summary, 
+      caption = "California Climate Vulnerability Summary",
+      col.names = c("Total Tracts", "ECE Tracts", "EHE Tracts", 
+                   "Cold Vulnerable", "Heat Vulnerable", "Total Vulnerable",
+                   "Avg % No Heating", "Avg % No AC"))
+```
+
+### County-Level Analysis
+
+```{r county-analysis}
+# County-level vulnerability analysis
+county_analysis <- combined_data %>%
+  group_by(county) %>%
+  summarise(
+    total_tracts = n(),
+    ece_tracts = sum(has_ece, na.rm = TRUE),
+    ehe_tracts = sum(has_ehe, na.rm = TRUE),
+    cold_vulnerable_tracts = sum(cold_vulnerable, na.rm = TRUE),
+    heat_vulnerable_tracts = sum(heat_vulnerable, na.rm = TRUE),
+    total_vulnerable_tracts = sum(climate_vulnerable, na.rm = TRUE),
+    vulnerability_rate = round((total_vulnerable_tracts / total_tracts) * 100, 1),
+    avg_pct_no_heating = round(mean(pct_no_heating, na.rm = TRUE), 2),
+    avg_pct_no_ac = round(mean(pct_no_ac, na.rm = TRUE), 2),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(total_vulnerable_tracts))
+
+# Display top 15 counties
+DT::datatable(county_analysis, 
+              caption = "County-Level Climate Vulnerability Analysis",
+              options = list(pageLength = 15, scrollX = TRUE)) %>%
+  DT::formatStyle("vulnerability_rate",
+                  background = DT::styleColorBar(county_analysis$vulnerability_rate, 'lightblue'),
+                  backgroundSize = '100% 90%',
+                  backgroundRepeat = 'no-repeat',
+                  backgroundPosition = 'center')
+```
+
+## Detailed Vulnerability Results
+
+### Cold-Vulnerable Census Tracts
+
+```{r cold-vulnerable}
+# Census tracts with ECE that lack heating resources
+ece_no_heating <- combined_data %>%
+  filter(cold_vulnerable) %>%
+  select(GEOID, NAME.y, county, event_type_clean, 
+         pct_no_heating, heating_no_fuel, total_housing_heating,
+         d_apparent_temperature_avg_min_intensity, 
+         lacks_heating) %>%
+  arrange(desc(pct_no_heating)) %>%
+  mutate(
+    pct_no_heating = round(pct_no_heating, 2),
+    temp_intensity = round(d_apparent_temperature_avg_min_intensity, 1)
+  )
+
+if(nrow(ece_no_heating) > 0) {
+  cat("Found", nrow(ece_no_heating), "census tracts with Extreme Cold Events lacking adequate heating\n\n")
+  
+  DT::datatable(ece_no_heating, 
+                caption = "Census Tracts with ECE Lacking Adequate Heating",
+                colnames = c("GEOID", "Name", "County", "Event Type", 
+                           "% No Heating", "Units No Fuel", "Total Units",
+                           "Min Temp Intensity", "Lacks Heating"),
+                options = list(pageLength = 10, scrollX = TRUE))
+} else {
+  cat("No census tracts found with ECE lacking adequate heating in California\n")
+}
+```
+
+### Heat-Vulnerable Census Tracts
+
+```{r heat-vulnerable}
+# Census tracts with EHE that lack cooling resources
+ehe_no_cooling <- combined_data %>%
+  filter(heat_vulnerable) %>%
+  select(GEOID, NAME.y, county, event_type_clean,
+         pct_no_ac, no_air_conditioning, total_housing_ac,
+         d_apparent_temperature_avg_max_intensity,
+         lacks_cooling) %>%
+  arrange(desc(pct_no_ac)) %>%
+  mutate(
+    pct_no_ac = round(pct_no_ac, 2),
+    temp_intensity = round(d_apparent_temperature_avg_max_intensity, 1)
+  )
+
+if(nrow(ehe_no_cooling) > 0) {
+  cat("Found", nrow(ehe_no_cooling), "census tracts with Extreme Heat Events lacking adequate cooling\n\n")
+  
+  DT::datatable(ehe_no_cooling, 
+                caption = "Census Tracts with EHE Lacking Adequate Cooling",
+                colnames = c("GEOID", "Name", "County", "Event Type",
+                           "% No AC", "Units No AC", "Total Units",
+                           "Max Temp Intensity", "Lacks Cooling"),
+                options = list(pageLength = 10, scrollX = TRUE))
+} else {
+  cat("No census tracts found with EHE lacking adequate cooling in California\n")
+}
+```
+
+
+## Visualizations
+
+### Most Climate-Vulnerable Counties - Heat Events
+
+```{r county-heat-heatmap, fig.width=12, fig.height=8}
+# County vulnerability heatmap for Heat Events
+county_heat_data <- combined_data %>%
+  filter(has_ehe) %>%
+  group_by(county) %>%
+  summarise(
+    total_tracts = n(),
+    heat_vulnerable_tracts = sum(heat_vulnerable, na.rm = TRUE),
+    vulnerability_rate = round((heat_vulnerable_tracts / total_tracts) * 100, 1),
+    avg_pct_no_ac = round(mean(pct_no_ac, na.rm = TRUE), 2),
+    avg_temp_intensity = round(mean(d_apparent_temperature_avg_max_intensity, na.rm = TRUE), 1),
+    .groups = 'drop'
+  ) %>%
+  filter(total_tracts >= 3) %>%  # Filter counties with at least 3 tracts
+  top_n(15, heat_vulnerable_tracts)
+
+p_heat <- ggplot(county_heat_data, aes(x = reorder(county, heat_vulnerable_tracts), 
+                                       y = heat_vulnerable_tracts)) +
+  geom_col(aes(fill = vulnerability_rate), width = 0.7) +
+  coord_flip() +
+  scale_fill_gradient2(low = "lightyellow", mid = "orange", high = "red",
+                       midpoint = median(county_heat_data$vulnerability_rate),
+                       name = "Vulnerability\nRate (%)") +
+  labs(
+    title = "Most Heat-Vulnerable Counties in California",
+    subtitle = "Counties with Extreme Heat Events - vulnerable census tracts by vulnerability rate",
+    x = "County",
+    y = "Number of Heat-Vulnerable Census Tracts",
+    caption = "Only counties with ≥3 census tracts with EHE shown"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+print(p_heat)
+```
+
+### Most Climate-Vulnerable Counties - Cold Events
+
+```{r county-cold-heatmap, fig.width=12, fig.height=8}
+# County vulnerability heatmap for Cold Events
+county_cold_data <- combined_data %>%
+  filter(has_ece) %>%
+  group_by(county) %>%
+  summarise(
+    total_tracts = n(),
+    cold_vulnerable_tracts = sum(cold_vulnerable, na.rm = TRUE),
+    vulnerability_rate = round((cold_vulnerable_tracts / total_tracts) * 100, 1),
+    avg_pct_no_heating = round(mean(pct_no_heating, na.rm = TRUE), 2),
+    avg_temp_intensity = round(mean(d_apparent_temperature_avg_min_intensity, na.rm = TRUE), 1),
+    .groups = 'drop'
+  ) %>%
+  filter(total_tracts >= 3) %>%  # Filter counties with at least 3 tracts
+  top_n(15, cold_vulnerable_tracts)
+
+p_cold <- ggplot(county_cold_data, aes(x = reorder(county, cold_vulnerable_tracts), 
+                                       y = cold_vulnerable_tracts)) +
+  geom_col(aes(fill = vulnerability_rate), width = 0.7) +
+  coord_flip() +
+  scale_fill_gradient2(low = "lightblue", mid = "purple", high = "blue",
+                       midpoint = median(county_cold_data$vulnerability_rate),
+                       name = "Vulnerability\nRate (%)") +
+  labs(
+    title = "Most Cold-Vulnerable Counties in California",
+    subtitle = "Counties with Extreme Cold Events - vulnerable census tracts by vulnerability rate",
+    x = "County",
+    y = "Number of Cold-Vulnerable Census Tracts",
+    caption = "Only counties with ≥3 census tracts with ECE shown"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+print(p_cold)
+```
+
+## Vulnerability Maps
+### Heat-Vulnerable Counties Map
+```{r heat-vulnerable-counties-map, fig.width=14, fig.height=12}
+# Create county-level heat vulnerability data
+county_heat_vulnerability <- combined_data %>%
+  filter(has_ehe) %>% 
+  group_by(county) %>%
+  summarise(
+    total_tracts = n(),
+    heat_vulnerable_tracts = sum(heat_vulnerable, na.rm = TRUE),
+    vulnerability_rate = round((heat_vulnerable_tracts / total_tracts) * 100, 1),
+    avg_pct_no_ac = round(mean(pct_no_ac, na.rm = TRUE), 2),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    vulnerability_level = case_when(
+      vulnerability_rate >= 75 ~ "Very High (≥75%)",
+      vulnerability_rate >= 50 ~ "High (50-74%)",
+      vulnerability_rate >= 25 ~ "Moderate (25-49%)",
+      vulnerability_rate >= 10 ~ "Low (10-24%)",
+      vulnerability_rate > 0 ~ "Very Low (1-9%)",
+      TRUE ~ "No Vulnerability"
+    ),
+    # Create factor with levels in the order they appear in case_when
+    vulnerability_level = factor(vulnerability_level, levels = c(
+      "Very High (≥75%)",
+      "High (50-74%)", 
+      "Moderate (25-49%)",
+      "Low (10-24%)",
+      "Very Low (1-9%)",
+      "No Vulnerability",
+      "No EHE Data"
+    ))
+  ) 
+
+# Join with county geographic data - keep all counties
+heat_counties_map <- ca_counties_geo %>%
+  mutate(county = trimws(gsub("\\s*County.*", "", NAME))) %>%
+  left_join(county_heat_vulnerability, by = "county") %>%
+  mutate(
+    vulnerability_level = ifelse(is.na(vulnerability_level), "No EHE Data", as.character(vulnerability_level)),
+    vulnerability_level = factor(vulnerability_level, levels = c(
+      "Very High (≥75%)",
+      "High (50-74%)", 
+      "Moderate (25-49%)",
+      "Low (10-24%)",
+      "Very Low (1-9%)",
+      "No Vulnerability",
+      "No EHE Data"
+    ))
+  )
+
+glimpse(county_heat_vulnerability)
+
+# Heat vulnerability color palette for counties (reordered to match factor levels)
+heat_county_colors <- c(
+  "Very High (≥75%)" = "#800026",
+  "High (50-74%)" = "#e31a1c",
+  "Moderate (25-49%)" = "#fd8d3c", 
+  "Low (10-24%)" = "#fed976",
+  "Very Low (1-9%)" = "#ffffcc",
+  "No Vulnerability" = "#90FF50",
+  "No EHE Data" = "#f0f0f0"
+)
+
+heat_counties_vulnerability_map <- ggplot() +
+  # Add heat vulnerability data for all counties
+  geom_sf(data = heat_counties_map,
+          aes(fill = vulnerability_level),
+          color = "white", size = 0.5) +
+  scale_fill_manual(values = heat_county_colors,
+                    name = "Heat Vulnerability Level",
+                    guide = guide_legend(override.aes = list(size = 0.5))) +
+  labs(
+    title = "Heat-Vulnerable Counties in California",
+    subtitle = "Counties with Extreme Heat Events - % of census tracts lacking adequate cooling (any % no AC)",
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5, margin = margin(b = 20)),
+    plot.caption = element_text(size = 10, hjust = 0.5, margin = margin(t = 20)),
+    legend.position = "bottom",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(0.8, "cm"),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+
+print(heat_counties_vulnerability_map)
+```
+
+### Cold-Vulnerable Counties Map
+```{r cold-vulnerable-counties-map, fig.width=14, fig.height=12}
+# Create county-level cold vulnerability data
+county_cold_vulnerability <- combined_data %>%
+  filter(has_ece) %>%
+  group_by(county) %>%
+  summarise(
+    total_tracts = n(),
+    cold_vulnerable_tracts = sum(cold_vulnerable, na.rm = TRUE),
+    vulnerability_rate = round((cold_vulnerable_tracts / total_tracts) * 100, 1),
+    avg_pct_no_heating = round(mean(pct_no_heating, na.rm = TRUE), 2),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    vulnerability_level = case_when(
+      vulnerability_rate >= 75 ~ "Very High (≥75%)",
+      vulnerability_rate >= 50 ~ "High (50-74%)",
+      vulnerability_rate >= 25 ~ "Moderate (25-49%)",
+      vulnerability_rate >= 10 ~ "Low (10-24%)",
+      vulnerability_rate > 0 ~ "Very Low (1-9%)",
+      TRUE ~ "No Vulnerability"
+    ),
+    # Create factor with levels in the order they appear in case_when
+    vulnerability_level = factor(vulnerability_level, levels = c(
+      "Very High (≥75%)",
+      "High (50-74%)", 
+      "Moderate (25-49%)",
+      "Low (10-24%)",
+      "Very Low (1-9%)",
+      "No Vulnerability",
+      "No ECE Data"
+    ))
+  )
+
+# Join with county geographic data - keep all counties
+cold_counties_map <- ca_counties_geo %>%
+  mutate(county = trimws(gsub("\\s*County.*", "", NAME))) %>%
+  left_join(county_cold_vulnerability, by = "county") %>%
+  mutate(
+    vulnerability_level = ifelse(is.na(vulnerability_level), "No ECE Data", as.character(vulnerability_level)),
+    vulnerability_level = factor(vulnerability_level, levels = c(
+      "Very High (≥75%)",
+      "High (50-74%)", 
+      "Moderate (25-49%)",
+      "Low (10-24%)",
+      "Very Low (1-9%)",
+      "No Vulnerability",
+      "No ECE Data"
+    ))
+  )
+
+# Cold vulnerability color palette for counties (reordered to match factor levels)
+cold_county_colors <- c(
+  "Very High (≥75%)" = "#08306b",
+  "High (50-74%)" = "#2171b5", 
+  "Moderate (25-49%)" = "#6baed6",
+  "Low (10-24%)" = "#c6dbef",
+  "Very Low (1-9%)" = "#f7fbff",
+  "No Vulnerability" = "#90FF50",
+  "No ECE Data" = "#f0f0f0"
+)
+
+cold_counties_vulnerability_map <- ggplot() +
+  # Add cold vulnerability data for all counties
+  geom_sf(data = cold_counties_map,
+          aes(fill = vulnerability_level),
+          color = "white", size = 0.5) +
+  scale_fill_manual(values = cold_county_colors,
+                    name = "Cold Vulnerability Level",
+                    guide = guide_legend(override.aes = list(size = 0.5))) +
+  labs(
+    title = "Cold-Vulnerable Counties in California", 
+    subtitle = "Counties with Extreme Cold Events - % of census tracts lacking heating (any units without fuel)",
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5, margin = margin(b = 20)),
+    plot.caption = element_text(size = 10, hjust = 0.5, margin = margin(t = 20)),
+    legend.position = "bottom",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(0.8, "cm"),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+
+print(cold_counties_vulnerability_map)
+```
