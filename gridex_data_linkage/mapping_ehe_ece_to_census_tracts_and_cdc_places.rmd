@@ -1,0 +1,121 @@
+---
+title: "Mapping Extreme Events to Census Tracts and CDC Places Data"
+author: "Chirag Patel and Pedram Fard"
+date: "2025-07-02"
+output: html_document
+---
+
+# Mapping Extreme Events to Census Tracts and CDC Places Data
+
+A number of complications can occur for vulnerable individuals and are exposed to extreme heat or cold events. Vulnerability can be defined as indiduals without access to resources, such as air conditioning (as documented in the .rmd), but also can include individuals who (non-exclusive list:
+
+- have a chronic kidney disease, as dehydration during a heat wave is a risk factor for decline,
+- cardiovascular disease, heat and cold stress may trigger events like myocardial infarction and stroke,
+- have a disability that under an extreme heat or cold event, may be impaired.
+
+This .rmd merges the GridEX data with CDC Places data to identify populations with these health-realted vulnerabilities.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# EHE and ECE data for 2023
+```{r}
+y2023 <- readRDS(url("https://dataverse.harvard.edu/api/access/datafile/10590042"))
+```
+
+
+# Join with CDC Places data for 2023
+
+PLACES Data: https://www.cdc.gov/places/index.html
+About the measurements: https://www.cdc.gov/places/measure-definitions/index.html
+
+```{r}
+places2023 <- read_csv("~/Downloads/PLACES__Census_Tract_Data__GIS_Friendly_Format___2023_release_20250702.csv")
+ # join with the ECE/EHE data
+places2023_ee <- places2023 |> inner_join(y2023, by=join_by(TractFIPS==GEOID))
+
+places2023_ee <- places2023_ee |> mutate(
+    # Clean event type classification
+    event_type_clean = case_when(
+      grepl("Cold", event_type, ignore.case = TRUE) ~ "ECE",
+      grepl("Heat", event_type, ignore.case = TRUE) ~ "EHE",
+      TRUE ~ as.character(event_type)
+    )
+  )
+
+
+unique_events <- y2023 |> group_by(GEOID, event_type) |> count() |> ungroup()
+
+places2023_unique_events <- places2023 |> inner_join(unique_events, by=join_by(TractFIPS==GEOID))
+
+places2023_unique_events <- places2023_unique_events |> rename(number_of_events = n)
+```
+
+
+
+
+
+# What is the distribution of the prevalence of cognitive disability among tracts that had a ECE or EHE?
+
+According to CDC Places: https://www.cdc.gov/places/measure-definitions/disability.html#cdc_data_surveillance_section_4-cognitive-disability-among-adults
+
+A multi-level regression, post-stratification approach was applied to BRFSS and ACS data to compute a detailed probability of having a cognitive disability (reporting 'yes' to the question: "Because of a physical, mental, or emotional condition, do you have serious difficulty concentrating, remembering, or making decisions?").
+
+```{r cognitive disability prevalence}
+
+ggplot(places2023_unique_events |> filter(!is.na(event_type)), 
+       aes(COGNITION_CrudePrev, group = event_type)) +
+       geom_histogram() + facet_grid(~event_type) + theme_bw() + xlab("Cognitive Disability Prevalence Per Tract")
+       
+
+ggplot(places2023_unique_events |> filter(!is.na(event_type)), 
+       aes(number_of_events, COGNITION_CrudePrev, group = event_type)) +
+       geom_point(shape=21) + facet_grid(~event_type) + xlab("Number of Extreme Events") + ylab("Cognitive Disability Prevalence Per Tract") + theme_bw()
+
+
+## Table arranged by prevalence of cognitive disability
+places2023_unique_events |> select(StateDesc, 
+                                   CountyName, 
+                                   TractFIPS,
+                                   COGNITION_CrudePrev, event_type,  number_of_events, TotalPopulation) |> arrange(-COGNITION_CrudePrev)
+```
+
+# What is the distribution of the prevalence of Kidney Disease among tracts that had a ECE or EHE?
+
+According to CDC Places: https://www.cdc.gov/places/measure-definitions/health-outcomes.html#cdc_data_surveillance_section_7-chronic-kidney-disease-among-adults
+
+A multi-level regression and post-stratification approach was applied to BRFSS and ACS data to compute a detailed probability among adults aged 18 years and older who report ever having been told by a doctor, nurse, or other health professional that they have kidney disease. The probability was then applied to the detailed population estimates at the appropriate geographic level to generate the prevalence. 
+
+Note
+The estimated prevalence of CKD in the U.S. population is likely to be an underestimate because BRFSS is a telephone survey that excludes the institutionalized population, in whom the prevalence is likely to be higher,28 and because the prevalence is based on self-report. 
+
+```{r}
+
+
+ggplot(places2023_unique_events |> filter(!is.na(event_type)), 
+       aes(KIDNEY_CrudePrev, group = event_type)) +
+       geom_histogram() + facet_grid(~event_type) + theme_bw() + xlab("Kidney Disease Prevalence Per Tract")
+       
+
+ggplot(places2023_unique_events |> filter(!is.na(event_type)), 
+       aes(number_of_events, KIDNEY_CrudePrev, group = event_type)) +
+       geom_point(shape=21) + facet_grid(~event_type) + xlab("Number of Extreme Events") + ylab("Kidney Disease Prevalence Per Tract") + theme_bw()
+
+
+## Table arranged by prevalence of Kidney Disease Prevalence
+places2023_unique_events |> select(StateDesc, 
+                                   CountyName, 
+                                   TractFIPS,
+                                   KIDNEY_CrudePrev, event_type,  number_of_events, TotalPopulation) |> arrange(-KIDNEY_CrudePrev)
+
+```
+## Conclusions
+
+- EHE and/or EHE occur in census tracts that contain a considerable number of indviduals who have health realted vulnerabilities in the United States in 2023 
+
+- Given that CKD prevalence (both diagnosed and undiagnosed) is ~12.5%, the potential number of indvoduals with CKD exposed to a EHE or ECE is a considerable underestimate.
